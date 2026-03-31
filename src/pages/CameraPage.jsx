@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useEquipmentRentals } from '../hooks/useRentals'
 import StatusBadge from '../components/equipment/StatusBadge'
@@ -15,6 +15,11 @@ function formatDate(dateStr) {
 export default function CameraPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const selectedDate = location.state?.selectedDate || (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  })()
   const [equipment, setEquipment] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -118,7 +123,12 @@ export default function CameraPage() {
           <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 2px' }}>{equipment.brand}</p>
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', margin: '0 0 8px' }}>{equipment.name}</h1>
           {equipment.lens_info && <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>{equipment.lens_info}</p>}
-          <StatusBadge status={equipment.status} rental={rental} />
+          {(() => {
+            const matchedRental = rentals.find(
+              (r) => r.status === 'rented' && selectedDate >= r.rental_date && selectedDate <= r.due_date
+            )
+            return <StatusBadge status={equipment.status} rental={matchedRental} selectedDate={selectedDate} />
+          })()}
         </div>
 
         {equipment.guide_text && (
@@ -127,70 +137,106 @@ export default function CameraPage() {
           </div>
         )}
 
-        {/* 현재 대여 정보 */}
-        {rental && (
-          <div style={{ padding: '14px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
-            <p style={{ fontSize: '12px', fontWeight: '600', color: '#1d4ed8', margin: '0 0 8px' }}>현재 대여 중</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <p style={{ fontSize: '13px', color: '#1e40af', margin: 0 }}>
-                <strong>{rental.borrower_generation}기 {rental.borrower_name}</strong>
-              </p>
-              <p style={{ fontSize: '12px', color: '#3b82f6', margin: 0 }}>
-                {formatDate(rental.rental_date)} ~ {formatDate(rental.due_date)} 반납 예정
-              </p>
-              <p style={{ fontSize: '12px', color: '#3b82f6', margin: 0 }}>
-                목적: {PURPOSE_LABELS[rental.purpose]}{rental.purpose_detail ? ` (${rental.purpose_detail})` : ''}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* 액션 버튼 */}
-        {equipment.status === 'available' && (
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '14px', borderRadius: '12px', border: 'none',
-              backgroundColor: '#111827', color: '#fff', fontSize: '15px', fontWeight: '600', cursor: 'pointer',
-            }}
-          >
-            대여 신청
-          </button>
-        )}
+        {equipment.status === 'maintenance' ? null : (() => {
+          // 선택한 날짜에 이미 대여가 있는지 확인 (대여 기간 범위로 체크)
+          const conflictRental = rentals.find(
+            (r) => r.status === 'rented' && selectedDate >= r.rental_date && selectedDate <= r.due_date
+          )
+          const isRentedOnDate = !!conflictRental
+          return isRentedOnDate ? (
+            <button
+              disabled
+              style={{
+                padding: '14px', borderRadius: '12px', border: 'none',
+                backgroundColor: '#9ca3af', color: '#fff', fontSize: '15px', fontWeight: '600', cursor: 'not-allowed',
+              }}
+            >
+              대여 불가
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                padding: '14px', borderRadius: '12px', border: 'none',
+                backgroundColor: '#111827', color: '#fff', fontSize: '15px', fontWeight: '600', cursor: 'pointer',
+              }}
+            >
+              대여 신청
+            </button>
+          )
+        })()}
 
-        {/* 대여 이력 */}
-        {rentals.length > 0 && (
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#374151', margin: '0 0 10px' }}>대여 이력</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {rentals.map((r) => (
-                <div key={r.id} style={{ padding: '12px 14px', backgroundColor: '#f9fafb', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#111827', fontWeight: '500', margin: '0 0 2px' }}>
-                      {r.borrower_generation}기 {r.borrower_name}
-                    </p>
-                    <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
-                      {formatDate(r.rental_date)} · {PURPOSE_LABELS[r.purpose]}
+        {/* 대여 예정일 */}
+        {(() => {
+          const _d = new Date()
+          const todayStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`
+          const upcoming = rentals
+            .filter(r => r.rental_date > todayStr && r.status === 'rented')
+            .sort((a, b) => a.rental_date.localeCompare(b.rental_date))
+          if (upcoming.length === 0) return null
+          return (
+            <div>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#374151', margin: '0 0 10px' }}>대여 예정</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {upcoming.map((r) => (
+                  <div key={r.id} style={{ padding: '12px 14px', backgroundColor: '#eff6ff', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: '13px', color: '#1e40af', fontWeight: '500', margin: '0 0 2px' }}>
+                        {r.borrower_generation}기 {r.borrower_name}
+                      </p>
+                      <p style={{ fontSize: '12px', color: '#3b82f6', margin: 0 }}>
+                        {PURPOSE_LABELS[r.purpose]}
+                      </p>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#2563eb', fontWeight: '500', margin: 0 }}>
+                      {formatDate(r.rental_date)}
                     </p>
                   </div>
-                  <span style={{
-                    fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '9999px',
-                    backgroundColor: r.status === 'returned' ? '#f3f4f6' : '#eff6ff',
-                    color: r.status === 'returned' ? '#9ca3af' : '#3b82f6',
-                  }}>
-                    {r.status === 'returned' ? '반납완료' : '대여중'}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
+
+        {/* 최근 대여 이력 */}
+        {rentals.length > 0 && (() => {
+          const _d2 = new Date()
+          const todayStr = `${_d2.getFullYear()}-${String(_d2.getMonth()+1).padStart(2,'0')}-${String(_d2.getDate()).padStart(2,'0')}`
+          const pastRentals = rentals.filter(r => r.rental_date <= todayStr)
+          if (pastRentals.length === 0) return null
+          const latest = pastRentals[0]
+          return (
+            <div>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#374151', margin: '0 0 10px' }}>최근 대여</p>
+              <div key={latest.id} style={{ padding: '12px 14px', backgroundColor: '#f9fafb', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontSize: '13px', color: '#111827', fontWeight: '500', margin: '0 0 2px' }}>
+                    {latest.borrower_generation}기 {latest.borrower_name}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
+                    {formatDate(latest.rental_date)} · {PURPOSE_LABELS[latest.purpose]}
+                  </p>
+                </div>
+                <span style={{
+                  fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '9999px',
+                  backgroundColor: latest.status === 'returned' ? '#f3f4f6' : '#eff6ff',
+                  color: latest.status === 'returned' ? '#9ca3af' : '#3b82f6',
+                }}>
+                  {latest.status === 'returned' ? '반납완료' : '대여중'}
+                </span>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* 대여 폼 바텀시트 */}
       {showForm && (
         <RentalForm
           equipment={equipment}
+          existingRentals={rentals}
+          selectedDate={selectedDate}
           onClose={() => setShowForm(false)}
           onSuccess={() => {
             setShowForm(false)

@@ -25,7 +25,6 @@ export function useAllRentals(year, month) {
       `)
       .lte('rental_date', to)
       .gte('due_date', from)
-      .eq('status', 'rented')
       .order('rental_date')
 
     setRentals(data || [])

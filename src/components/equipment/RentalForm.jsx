@@ -6,7 +6,11 @@ import { useRentalActions } from '../../hooks/useRentalActions'
 import { PURPOSE_LABELS } from '../../constants/rules'
 
 function today() {
-  return new Date().toISOString().split('T')[0]
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 function tomorrow(dateStr) {
   const d = new Date(dateStr)
@@ -14,7 +18,7 @@ function tomorrow(dateStr) {
   return d.toISOString().split('T')[0]
 }
 
-export default function RentalForm({ equipment, onClose, onSuccess }) {
+export default function RentalForm({ equipment, existingRentals = [], selectedDate, onClose, onSuccess }) {
   const { createRental } = useRentalActions()
   const isCamera = equipment.category === 'camera'
 
@@ -29,8 +33,8 @@ export default function RentalForm({ equipment, onClose, onSuccess }) {
     borrower_contact: '',
     camera_id: isCamera ? equipment.id : null,
     tripod_id: !isCamera ? equipment.id : null,
-    rental_date: today(),
-    due_date: tomorrow(today()),
+    rental_date: selectedDate || today(),
+    due_date: tomorrow(selectedDate || today()),
     purpose: 'regular',
     purpose_detail: '',
     notice_confirmed: false,
@@ -72,6 +76,11 @@ export default function RentalForm({ equipment, onClose, onSuccess }) {
     if (!form.borrower_contact) return setError('연락처를 입력해주세요.')
     if (!form.camera_id && !form.tripod_id) return setError('장비를 최소 하나 선택해주세요.')
     if (!form.notice_confirmed) return setError('공지사항을 확인해주세요.')
+
+    const conflict = existingRentals.find(
+      (r) => r.status === 'rented' && r.rental_date === form.rental_date
+    )
+    if (conflict) return setError(`${form.rental_date}에 이미 대여 신청이 있어요. 다른 날짜를 선택해주세요.`)
 
     setSubmitting(true)
     setError('')
@@ -157,6 +166,21 @@ export default function RentalForm({ equipment, onClose, onSuccess }) {
           {/* 유의사항 (항상 펼쳐서 표시) */}
           <RentalNotice />
 
+          {/* 대여 신청일 확인 */}
+          <div>
+            <label style={labelStyle}>대여 신청일</label>
+            <div style={{ padding: '12px 14px', backgroundColor: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#111827', margin: 0 }}>
+                {(() => {
+                  const days = ['일', '월', '화', '수', '목', '금', '토']
+                  const d = new Date(form.rental_date + 'T00:00:00')
+                  if (isNaN(d.getTime())) return form.rental_date
+                  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`
+                })()}
+              </p>
+            </div>
+          </div>
+
           {/* 선택한 장비 확인 */}
           <div>
             <label style={labelStyle}>대여 장비</label>
@@ -241,46 +265,32 @@ export default function RentalForm({ equipment, onClose, onSuccess }) {
             )}
           </div>
 
-          {/* 대여 정보 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div>
-              <label style={labelStyle}>대여 희망일</label>
+          {/* 대여 목적 */}
+          <div>
+            <label style={labelStyle}>대여 목적</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {Object.entries(PURPOSE_LABELS).map(([key, label]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#374151' }}>
+                  <input
+                    type="radio"
+                    name="purpose"
+                    value={key}
+                    checked={form.purpose === key}
+                    onChange={() => setField('purpose', key)}
+                    style={{ accentColor: '#111827' }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {form.purpose === 'other' && (
               <input
-                type="date"
-                style={inputStyle}
-                value={form.rental_date}
-                onChange={(e) => {
-                  setField('rental_date', e.target.value)
-                  setField('due_date', tomorrow(e.target.value))
-                }}
+                style={{ ...inputStyle, marginTop: '8px' }}
+                placeholder="목적을 입력해주세요"
+                value={form.purpose_detail}
+                onChange={(e) => setField('purpose_detail', e.target.value)}
               />
-            </div>
-            <div>
-              <label style={labelStyle}>대여 목적</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.entries(PURPOSE_LABELS).map(([key, label]) => (
-                  <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#374151' }}>
-                    <input
-                      type="radio"
-                      name="purpose"
-                      value={key}
-                      checked={form.purpose === key}
-                      onChange={() => setField('purpose', key)}
-                      style={{ accentColor: '#111827' }}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-              {form.purpose === 'other' && (
-                <input
-                  style={{ ...inputStyle, marginTop: '8px' }}
-                  placeholder="목적을 입력해주세요"
-                  value={form.purpose_detail}
-                  onChange={(e) => setField('purpose_detail', e.target.value)}
-                />
-              )}
-            </div>
+            )}
           </div>
 
           {/* 공지사항 확인 */}

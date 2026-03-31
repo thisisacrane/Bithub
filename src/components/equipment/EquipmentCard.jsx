@@ -1,13 +1,21 @@
 import { useNavigate } from 'react-router-dom'
 import StatusBadge from './StatusBadge'
 
-export default function EquipmentCard({ equipment }) {
+export default function EquipmentCard({ equipment, selectedDate, allRentals = [] }) {
   const navigate = useNavigate()
-  const isUnavailable = equipment.status !== 'available'
+
+  // 이 장비에 대해 선택한 날짜에 해당하는 대여 찾기
+  const matchedRental = allRentals.find((r) => {
+    const isThisEquipment = r.camera_id === equipment.id || r.tripod_id === equipment.id
+    const isOnDate = selectedDate >= r.rental_date && selectedDate <= r.due_date
+    return isThisEquipment && isOnDate
+  })
+
+  const isUnavailable = !!matchedRental || equipment.status === 'maintenance'
 
   return (
     <div
-      onClick={() => navigate(`/camera/${equipment.id}`)}
+      onClick={() => navigate(`/camera/${equipment.id}`, { state: { selectedDate } })}
       className="active:scale-95 transition-transform"
       style={{
         backgroundColor: '#ffffff',
@@ -91,7 +99,11 @@ export default function EquipmentCard({ equipment }) {
         )}
 
         <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
-          <StatusBadge status={equipment.status} rental={equipment.current_rental} />
+          <StatusBadge
+            status={equipment.status}
+            rental={matchedRental}
+            selectedDate={selectedDate}
+          />
         </div>
       </div>
     </div>

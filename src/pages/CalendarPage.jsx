@@ -4,7 +4,7 @@ import { useAllRentals } from '../hooks/useAllRentals'
 const DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
 function getRentalsForDate(rentals, dateStr) {
-  return rentals.filter((r) => r.rental_date <= dateStr && r.due_date >= dateStr)
+  return rentals.filter((r) => r.rental_date === dateStr)
 }
 
 
@@ -106,6 +106,8 @@ export default function CalendarPage() {
                 cursor: 'pointer',
                 backgroundColor: isSelected ? '#f0f9ff' : 'transparent',
                 border: isSelected ? '1.5px solid #bae6fd' : '1.5px solid transparent',
+                overflow: 'hidden',
+                minWidth: 0,
               }}
             >
               {/* 날짜 숫자 */}

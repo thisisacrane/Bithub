@@ -14,6 +14,7 @@ export function useEquipments() {
         current_rental:rentals!current_rental_id (
           borrower_name,
           borrower_generation,
+          rental_date,
           due_date,
           purpose
         )

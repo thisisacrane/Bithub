@@ -2,11 +2,29 @@ import { supabase } from '../lib/supabase'
 
 export function useRentalActions() {
   const createRental = async (payload) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const isPast = payload.due_date < today
+
+    const insertPayload = isPast
+      ? { ...payload, status: 'returned', returned_at: new Date().toISOString() }
+      : payload
+
     const { data, error } = await supabase
       .from('rentals')
-      .insert([payload])
+      .insert([insertPayload])
       .select()
       .single()
+
+    // 과거 날짜 대여 → 장비 상태를 다시 available로 복구
+    if (!error && isPast) {
+      if (payload.camera_id) {
+        await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', payload.camera_id)
+      }
+      if (payload.tripod_id) {
+        await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', payload.tripod_id)
+      }
+    }
+
     return { data, error }
   }
 

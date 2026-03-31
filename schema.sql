@@ -146,9 +146,12 @@ ALTER TABLE members ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "누구나 장비 조회" ON equipments FOR SELECT USING (true);
 CREATE POLICY "누구나 장비 수정" ON equipments FOR UPDATE USING (true);
+CREATE POLICY "누구나 장비 추가" ON equipments FOR INSERT WITH CHECK (true);
+CREATE POLICY "누구나 장비 삭제" ON equipments FOR DELETE USING (true);
 CREATE POLICY "누구나 대여 조회" ON rentals FOR SELECT USING (true);
 CREATE POLICY "누구나 대여 생성" ON rentals FOR INSERT WITH CHECK (true);
 CREATE POLICY "누구나 대여 수정" ON rentals FOR UPDATE USING (true);
+CREATE POLICY "누구나 대여 삭제" ON rentals FOR DELETE USING (true);
 CREATE POLICY "누구나 회원 조회" ON members FOR SELECT USING (true);
 CREATE POLICY "누구나 회원 추가" ON members FOR INSERT WITH CHECK (true);
 

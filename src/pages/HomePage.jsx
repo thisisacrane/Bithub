@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { useEquipments } from '../hooks/useEquipments'
+import { useAllRentals } from '../hooks/useRentals'
 import EquipmentCard from '../components/equipment/EquipmentCard'
+
+function getToday() {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
 
 const TABS = [
   { key: 'all', label: '전체' },
@@ -93,7 +102,9 @@ function LensTipCard() {
 
 export default function HomePage() {
   const { equipments, loading, error } = useEquipments()
+  const { rentals: allRentals } = useAllRentals()
   const [activeTab, setActiveTab] = useState('all')
+  const [selectedDate, setSelectedDate] = useState(getToday())
 
   const filtered = activeTab === 'all'
     ? equipments
@@ -133,6 +144,64 @@ export default function HomePage() {
       {/* 렌즈 팁 카드 */}
       <LensTipCard />
 
+      {/* 날짜 선택 */}
+      <div
+        style={{
+          margin: '12px 12px 0',
+          padding: '14px 16px',
+          borderRadius: '14px',
+          backgroundColor: '#fff',
+          border: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          position: 'relative',
+          cursor: 'pointer',
+        }}
+        onClick={() => document.getElementById('home-date-input').showPicker?.()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '10px',
+            backgroundColor: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div>
+            <p style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '500', margin: '0 0 2px' }}>대여 희망일</p>
+            <p style={{ fontSize: '15px', fontWeight: '700', color: '#111827', margin: 0 }}>
+              {(() => {
+                const days = ['일', '월', '화', '수', '목', '금', '토']
+                const d = new Date(selectedDate + 'T00:00:00')
+                if (isNaN(d.getTime())) return selectedDate
+                return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`
+              })()}
+            </p>
+          </div>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+        <input
+          id="home-date-input"
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          style={{
+            position: 'absolute',
+            opacity: 0,
+            width: 0,
+            height: 0,
+            pointerEvents: 'none',
+          }}
+        />
+      </div>
+
       {/* 장비 그리드 */}
       <div className="flex-1" style={{ padding: '12px 12px 16px' }}>
         {loading && (
@@ -153,7 +222,7 @@ export default function HomePage() {
         {!loading && !error && filtered.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: '4px' }}>
             {filtered.map((equipment) => (
-              <EquipmentCard key={equipment.id} equipment={equipment} />
+              <EquipmentCard key={equipment.id} equipment={equipment} selectedDate={selectedDate} allRentals={allRentals} />
             ))}
           </div>
         )}
