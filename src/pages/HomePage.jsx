@@ -174,7 +174,7 @@ export default function HomePage() {
           position: 'relative',
           cursor: 'pointer',
         }}
-        onClick={() => document.getElementById('home-date-input').showPicker?.()}
+
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
@@ -210,10 +210,11 @@ export default function HomePage() {
           onChange={(e) => handleDateChange(e.target.value)}
           style={{
             position: 'absolute',
+            inset: 0,
             opacity: 0,
-            width: 0,
-            height: 0,
-            pointerEvents: 'none',
+            width: '100%',
+            height: '100%',
+            cursor: 'pointer',
           }}
         />
       </div>
