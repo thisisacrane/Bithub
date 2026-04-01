@@ -75,68 +75,78 @@ export default function Header() {
           <div style={{
             backgroundColor: '#fff',
             borderRadius: '20px',
-            padding: '24px 24px 20px',
-            width: '260px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+            padding: '28px 24px 24px',
+            width: '300px',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.12)',
           }}>
-            <h2 style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '16px' }}>관리자 PIN 입력</h2>
+            {/* 자물쇠 아이콘 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+            </div>
+            <p style={{ fontSize: '15px', fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: '4px' }}>관리자 확인</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', marginBottom: '20px' }}>PIN을 입력해 주세요</p>
             <form onSubmit={handlePinSubmit}>
               <input
                 type="password"
-                inputMode="numeric"
-                maxLength={6}
                 value={pin}
                 onChange={(e) => { setPin(e.target.value); setError('') }}
-                placeholder="PIN 입력"
+                placeholder="PIN"
                 autoFocus
                 style={{
                   width: '100%',
-                  border: '1px solid #e5e7eb',
+                  border: error ? '1.5px solid #f87171' : '1.5px solid #e5e7eb',
                   borderRadius: '10px',
-                  padding: '10px 12px',
+                  padding: '11px 14px',
+                  fontSize: '15px',
                   textAlign: 'center',
-                  fontSize: '16px',
-                  letterSpacing: '0.2em',
                   outline: 'none',
                   boxSizing: 'border-box',
+                  color: '#111827',
+                  transition: 'border-color 0.15s',
                 }}
               />
-              {error && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '8px', textAlign: 'center' }}>{error}</p>}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowPinModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: '10px',
-                    border: '1px solid #e5e7eb',
-                    backgroundColor: '#fff',
-                    color: '#6b7280',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                  }}
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    backgroundColor: '#111827',
-                    color: '#fff',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                  }}
-                >
-                  확인
-                </button>
-              </div>
+              {error && (
+                <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', textAlign: 'center' }}>{error}</p>
+              )}
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  marginTop: '12px',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#111827',
+                  color: '#fff',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                확인
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '11px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: '#9ca3af',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                취소
+              </button>
             </form>
           </div>
         </div>
