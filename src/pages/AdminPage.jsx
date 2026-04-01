@@ -28,20 +28,25 @@ function EquipmentManager() {
   const { returnRental } = useRentalActions()
 
   const fetch = async () => {
-    const { data } = await supabase
-      .from('equipments')
-      .select('*, current_rental:rentals!current_rental_id(rental_date, borrower_name, borrower_generation, status)')
-      .order('category')
-      .order('name')
-    setEquipments(data || [])
+    const [{ data: eqData }, { data: rentalData }] = await Promise.all([
+      supabase.from('equipments').select('*').order('category').order('name'),
+      supabase.from('rentals')
+        .select('id, status, rental_date, due_date, borrower_name, borrower_generation, camera_id, tripod_id')
+        .eq('status', 'rented'),
+    ])
+
+    const activeRentals = rentalData || []
+    const merged = (eqData || []).map((eq) => ({
+      ...eq,
+      active_rental: activeRentals.find((r) => r.camera_id === eq.id || r.tripod_id === eq.id) || null,
+    }))
+    setEquipments(merged)
     setLoading(false)
   }
 
   const getEffectiveStatus = (eq) => {
-    if (eq.status !== 'rented') return eq.status
-    if (!eq.current_rental) return 'rented'
-    if (eq.current_rental.status === 'scheduled') return 'available'
-    return 'rented'
+    if (eq.status === 'maintenance') return 'maintenance'
+    return eq.active_rental ? 'rented' : 'available'
   }
 
   useEffect(() => { fetch() }, [])
@@ -85,8 +90,8 @@ function EquipmentManager() {
   }
 
   const handleReturn = async (eq) => {
-    if (!eq.current_rental_id) return
-    await returnRental(eq.current_rental_id)
+    if (!eq.active_rental?.id) return
+    await returnRental(eq.active_rental.id)
     setConfirmReturnId(null)
     fetch()
   }
@@ -152,8 +157,8 @@ function EquipmentManager() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                   <span style={{ fontSize: '11px', fontWeight: '500', color: STATUS_COLOR[getEffectiveStatus(eq)] }}>
-                    {(getEffectiveStatus(eq) === 'rented' || getEffectiveStatus(eq) === 'scheduled') && eq.current_rental
-                      ? `${eq.current_rental.borrower_generation}기 ${eq.current_rental.borrower_name} ${STATUS_LABEL[getEffectiveStatus(eq)]}`
+                    {getEffectiveStatus(eq) === 'rented' && eq.active_rental
+                      ? `${eq.active_rental.borrower_generation}기 ${eq.active_rental.borrower_name} 대여중`
                       : STATUS_LABEL[getEffectiveStatus(eq)]}
                   </span>
                   {getEffectiveStatus(eq) === 'rented' && (
