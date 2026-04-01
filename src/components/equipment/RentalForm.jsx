@@ -202,7 +202,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
                   // 신규 rental_date가 기존 대여 기간(rental_date ~ due_date) 안에 있을 때만 비활성화
                   const isRented = tri.status === 'rented'
                     && (tri.current_rental?.rental_date ?? '') <= form.rental_date
-                    && (tri.current_rental?.due_date ?? '') >= form.rental_date
+                    && (tri.current_rental?.due_date ?? '') > form.rental_date
                   const isSelected = form.tripod_id === tri.id
                   return (
                     <button
