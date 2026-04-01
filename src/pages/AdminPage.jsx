@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRentalActions } from '../hooks/useRentalActions'
@@ -340,8 +340,17 @@ function CalendarManager() {
   const STATUS_LABEL = { rented: '대여중', returned: '반납완료' }
   const STATUS_COLOR = { rented: '#2563eb', returned: '#16a34a' }
 
+  const touchStartX = useRef(null)
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) diff > 0 ? nextMonth() : prevMonth()
+    touchStartX.current = null
+  }
+
   return (
-    <div>
+    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {deleteError && (
         <div style={{ margin: '12px 16px', padding: '10px 12px', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
           <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>{deleteError}</p>

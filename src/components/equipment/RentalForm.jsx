@@ -134,20 +134,21 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+        display: 'flex', flexDirection: 'column',
+        justifyContent: window.innerWidth >= 768 ? 'center' : 'flex-end',
+        alignItems: 'center',
         backgroundColor: 'rgba(0,0,0,0.4)',
       }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div style={{
         backgroundColor: '#fff',
-        borderRadius: '20px 20px 0 0',
+        borderRadius: window.innerWidth >= 768 ? '20px' : '20px 20px 0 0',
         maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
         maxWidth: '480px',
         width: '100%',
-        margin: '0 auto',
       }}>
         {/* 핸들 */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 0' }}>

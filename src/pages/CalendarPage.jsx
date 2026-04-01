@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAllRentals } from '../hooks/useAllRentals'
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -44,8 +44,21 @@ export default function CalendarPage() {
 
   const selectedRentals = selectedDate ? getRentalsForDate(rentals, toDateStr(selectedDate)) : []
 
+  const touchStartX = useRef(null)
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) diff > 0 ? nextMonth() : prevMonth()
+    touchStartX.current = null
+  }
+
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+    <div
+      style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
