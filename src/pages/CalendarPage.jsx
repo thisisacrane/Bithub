@@ -155,7 +155,7 @@ export default function CalendarPage() {
                     whiteSpace: 'nowrap',
                     textOverflow: 'ellipsis',
                   }}>
-                    {r.camera?.name || r.tripod?.name}
+                    {[r.camera?.name, r.tripod?.name].filter(Boolean).join(' + ')}
                   </div>
                 ))}
                 {dayRentals.length > 2 && (
@@ -188,7 +188,7 @@ export default function CalendarPage() {
                 <div key={r.id} style={{ padding: '12px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <p style={{ fontSize: '13px', fontWeight: '500', color: '#111827', margin: '0 0 2px' }}>
-                      {r.camera?.name || r.tripod?.name}
+                      {[r.camera?.name, r.tripod?.name].filter(Boolean).join(' + ')}
                     </p>
                     <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
                       {r.borrower_generation}기 {r.borrower_name} · {r.borrower_department}
