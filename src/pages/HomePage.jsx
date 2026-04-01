@@ -105,9 +105,13 @@ export default function HomePage() {
   const { equipments, loading, error } = useEquipments()
   const { rentals: allRentals } = useAllRentals()
   const [activeTab, setActiveTab] = useState('all')
-  const [selectedDate, setSelectedDate] = useState(
-    () => sessionStorage.getItem('selectedDate') || getToday()
-  )
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const saved = sessionStorage.getItem('selectedDate')
+    const today = getToday()
+    if (saved && saved >= today) return saved
+    sessionStorage.setItem('selectedDate', today)
+    return today
+  })
   const location = useLocation()
 
   useEffect(() => {
