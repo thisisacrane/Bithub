@@ -17,6 +17,7 @@ export function useAllRentals(year, month) {
         id,
         borrower_name,
         borrower_generation,
+        borrower_department,
         rental_date,
         due_date,
         status,

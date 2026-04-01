@@ -32,7 +32,7 @@ const tabs = [
 
 export default function BottomNav() {
   return (
-    <nav className="sticky bottom-0 z-40 bg-white border-t border-gray-100 flex" style={{ alignItems: 'stretch' }}>
+    <nav className="mobile-bottom-nav sticky bottom-0 z-40 bg-white border-t border-gray-100" style={{ alignItems: 'stretch' }}>
       {tabs.map(({ to, label, icon }, idx) => (
         <React.Fragment key={to}>
           {idx > 0 && (

@@ -6,8 +6,10 @@ export default function EquipmentCard({ equipment, selectedDate, allRentals = []
 
   // 이 장비에 대해 선택한 날짜에 해당하는 대여 찾기
   const matchedRental = allRentals.find((r) => {
+    if (r.status !== 'rented' && r.status !== 'scheduled') return false
     const isThisEquipment = r.camera_id === equipment.id || r.tripod_id === equipment.id
-    const isOnDate = selectedDate >= r.rental_date && selectedDate <= r.due_date
+    // due_date 당일은 오후 1시 자동반납 후 오후 2시 신규 대여 가능하므로 < 로 체크
+    const isOnDate = selectedDate >= r.rental_date && selectedDate < r.due_date
     return isThisEquipment && isOnDate
   })
 

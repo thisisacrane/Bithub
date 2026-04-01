@@ -4,10 +4,15 @@ export function useRentalActions() {
   const createRental = async (payload) => {
     const today = new Date().toISOString().slice(0, 10)
     const isPast = payload.due_date < today
+    const isFuture = payload.rental_date > today
 
-    const insertPayload = isPast
-      ? { ...payload, status: 'returned', returned_at: new Date().toISOString() }
-      : payload
+    let insertPayload = { ...payload }
+    if (isPast) {
+      insertPayload = { ...payload, status: 'returned', returned_at: new Date().toISOString() }
+    } else if (isFuture) {
+      insertPayload = { ...payload, status: 'scheduled' }
+    }
+    // rental_date === today → status 기본값 'rented' 유지
 
     const { data, error } = await supabase
       .from('rentals')

@@ -172,7 +172,7 @@ export default function CalendarPage() {
                       {r.camera?.name || r.tripod?.name}
                     </p>
                     <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
-                      {r.borrower_generation}기 {r.borrower_name}
+                      {r.borrower_generation}기 {r.borrower_name} · {r.borrower_department}
                     </p>
                   </div>
                   <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, textAlign: 'right' }}>

@@ -19,6 +19,17 @@ const dotStyle = (color) => ({
   flexShrink: 0,
 })
 
+function getTodayStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getRentalLabel(rental) {
+  const today = getTodayStr()
+  const label = rental.rental_date === today ? '대여중' : '대여 예정'
+  return `${rental.borrower_generation}기 ${rental.borrower_name} ${label}`
+}
+
 export default function StatusBadge({ status, rental, selectedDate }) {
   if (status === 'maintenance') {
     return (
@@ -35,7 +46,7 @@ export default function StatusBadge({ status, rental, selectedDate }) {
       return (
         <span style={badgeStyle('#eff6ff', '#2563eb')}>
           <span style={dotStyle('#3b82f6')} />
-          {rental.borrower_generation}기 {rental.borrower_name} 대여 예정
+          {getRentalLabel(rental)}
         </span>
       )
     }
@@ -63,7 +74,7 @@ export default function StatusBadge({ status, rental, selectedDate }) {
     return (
       <span style={badgeStyle('#eff6ff', '#2563eb')}>
         <span style={dotStyle('#3b82f6')} />
-        {rental.borrower_generation}기 {rental.borrower_name} 대여 예정
+        {getRentalLabel(rental)}
       </span>
     )
   }

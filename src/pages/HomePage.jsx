@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useEquipments } from '../hooks/useEquipments'
 import { useAllRentals } from '../hooks/useRentals'
 import EquipmentCard from '../components/equipment/EquipmentCard'
@@ -104,7 +105,22 @@ export default function HomePage() {
   const { equipments, loading, error } = useEquipments()
   const { rentals: allRentals } = useAllRentals()
   const [activeTab, setActiveTab] = useState('all')
-  const [selectedDate, setSelectedDate] = useState(getToday())
+  const [selectedDate, setSelectedDate] = useState(
+    () => sessionStorage.getItem('selectedDate') || getToday()
+  )
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.state?.resetToToday) {
+      const today = getToday()
+      setSelectedDate(today)
+    }
+  }, [location.state])
+
+  const handleDateChange = (date) => {
+    sessionStorage.setItem('selectedDate', date)
+    setSelectedDate(date)
+  }
 
   const filtered = activeTab === 'all'
     ? equipments
@@ -191,7 +207,7 @@ export default function HomePage() {
           id="home-date-input"
           type="date"
           value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
+          onChange={(e) => handleDateChange(e.target.value)}
           style={{
             position: 'absolute',
             opacity: 0,
@@ -220,7 +236,7 @@ export default function HomePage() {
           </div>
         )}
         {!loading && !error && filtered.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: '4px' }}>
+          <div className="grid grid-cols-2 lg:grid-cols-3" style={{ gap: '12px', paddingTop: '4px' }}>
             {filtered.map((equipment) => (
               <EquipmentCard key={equipment.id} equipment={equipment} selectedDate={selectedDate} allRentals={allRentals} />
             ))}

@@ -24,7 +24,7 @@ export default function CameraPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [toast, setToast] = useState('')
-  const { rentals } = useEquipmentRentals(id)
+  const { rentals, refetch: refetchRentals } = useEquipmentRentals(id)
 
   const fetchEquipment = async () => {
     const { data } = await supabase
@@ -80,8 +80,6 @@ export default function CameraPage() {
     </div>
   )
 
-  const rental = equipment.current_rental
-
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
       {/* 뒤로가기 */}
@@ -125,7 +123,7 @@ export default function CameraPage() {
           {equipment.lens_info && <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>{equipment.lens_info}</p>}
           {(() => {
             const matchedRental = rentals.find(
-              (r) => r.status === 'rented' && selectedDate >= r.rental_date && selectedDate <= r.due_date
+              (r) => (r.status === 'rented' || r.status === 'scheduled') && selectedDate >= r.rental_date && selectedDate < r.due_date
             )
             return <StatusBadge status={equipment.status} rental={matchedRental} selectedDate={selectedDate} />
           })()}
@@ -141,7 +139,7 @@ export default function CameraPage() {
         {equipment.status === 'maintenance' ? null : (() => {
           // 선택한 날짜에 이미 대여가 있는지 확인 (대여 기간 범위로 체크)
           const conflictRental = rentals.find(
-            (r) => r.status === 'rented' && selectedDate >= r.rental_date && selectedDate <= r.due_date
+            (r) => (r.status === 'rented' || r.status === 'scheduled') && selectedDate >= r.rental_date && selectedDate < r.due_date
           )
           const isRentedOnDate = !!conflictRental
           return isRentedOnDate ? (
@@ -172,7 +170,7 @@ export default function CameraPage() {
           const _d = new Date()
           const todayStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`
           const upcoming = rentals
-            .filter(r => r.rental_date > todayStr && r.status === 'rented')
+            .filter(r => r.rental_date > todayStr && (r.status === 'rented' || r.status === 'scheduled'))
             .sort((a, b) => a.rental_date.localeCompare(b.rental_date))
           if (upcoming.length === 0) return null
           return (
@@ -242,6 +240,7 @@ export default function CameraPage() {
             setShowForm(false)
             showToast('대여 신청 완료!')
             fetchEquipment()
+            refetchRentals()
           }}
         />
       )}

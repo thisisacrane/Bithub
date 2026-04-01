@@ -47,7 +47,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     if (!isCamera) return
     supabase
       .from('equipments')
-      .select('id, name, status, current_rental:rentals!current_rental_id(borrower_name, borrower_generation)')
+      .select('id, name, status, current_rental:rentals!current_rental_id(borrower_name, borrower_generation, due_date)')
       .eq('category', 'tripod')
       .order('name')
       .then(({ data }) => setTripods(data || []))
@@ -78,7 +78,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     if (!form.notice_confirmed) return setError('공지사항을 확인해주세요.')
 
     const conflict = existingRentals.find(
-      (r) => r.status === 'rented' && r.rental_date === form.rental_date
+      (r) => (r.status === 'rented' || r.status === 'scheduled') && r.rental_date === form.rental_date
     )
     if (conflict) return setError(`${form.rental_date}에 이미 대여 신청이 있어요. 다른 날짜를 선택해주세요.`)
 
@@ -198,7 +198,9 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
               <label style={labelStyle}>삼각대 추가 선택 <span style={{ fontWeight: '400', color: '#9ca3af' }}>(선택사항)</span></label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {tripods.map((tri) => {
-                  const isRented = tri.status === 'rented'
+                  // 기존 대여 due_date가 신규 rental_date보다 이전이면 사용 가능
+                  // (익일 오후 1시 자동반납, 신규 대여는 오후 2시 이후)
+                  const isRented = tri.status === 'rented' && (tri.current_rental?.due_date ?? '') >= form.rental_date
                   const isSelected = form.tripod_id === tri.id
                   return (
                     <button
@@ -259,7 +261,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
               <div style={{ marginTop: '10px', padding: '10px 12px', backgroundColor: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                 <p style={{ fontSize: '13px', color: '#111827', fontWeight: '500', margin: '0 0 2px' }}>{form.borrower_name}</p>
                 <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
-                  {form.borrower_generation}기 · {form.borrower_department} · {form.borrower_contact}
+                  {form.borrower_generation}기 · {form.borrower_department}
                 </p>
               </div>
             )}

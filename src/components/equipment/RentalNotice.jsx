@@ -3,7 +3,7 @@ import { RENTAL_RULES, RENTAL_RULES_EXTRA, RENTAL_CONTACT } from '../../constant
 export default function RentalNotice() {
   return (
     <div style={{ borderRadius: '12px', border: '1px solid #fef08a', backgroundColor: '#fefce8', padding: '14px' }}>
-      <p style={{ fontSize: '13px', fontWeight: '600', color: '#854d0e', margin: '0 0 8px' }}>📋 대여 유의사항</p>
+      <p style={{ fontSize: '13px', fontWeight: '600', color: '#854d0e', margin: '0 0 8px' }}>📋 대여 유의사항 (필독!)</p>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {RENTAL_RULES.map((rule, i) => (
           <li key={i} style={{ fontSize: '12px', color: '#92400e', lineHeight: '1.7', display: 'flex', gap: '6px' }}>

@@ -9,107 +9,10 @@ const DAYS = ['일', '월', '화', '수', '목', '금', '토']
 // 탭 버튼
 // ────────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'rental', label: '대여 현황' },
   { key: 'equipment', label: '장비 관리' },
-  { key: 'member', label: '회원 목록' },
   { key: 'calendar', label: '캘린더 편집' },
+  { key: 'member', label: '회원 목록' },
 ]
-
-// ────────────────────────────────────────────────────────────
-// 대여 현황 탭
-// ────────────────────────────────────────────────────────────
-function RentalManager() {
-  const [rentals, setRentals] = useState([])
-  const [loading, setLoading] = useState(true)
-  const { returnRental } = useRentalActions()
-  const [confirmId, setConfirmId] = useState(null)
-  const [returnError, setReturnError] = useState('')
-
-  const fetch = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('rentals')
-      .select(`
-        id, borrower_name, borrower_generation, borrower_contact,
-        rental_date, due_date,
-        camera:equipments!camera_id(name),
-        tripod:equipments!tripod_id(name)
-      `)
-      .eq('status', 'rented')
-      .order('rental_date', { ascending: false })
-    setRentals(data || [])
-    setLoading(false)
-  }
-
-  useEffect(() => { fetch() }, [])
-
-  const handleReturn = async (id) => {
-    setReturnError('')
-    const { error } = await returnRental(id)
-    if (error) {
-      console.error('반납 오류:', error)
-      setReturnError(`반납 처리 실패: ${error.message}`)
-      return
-    }
-    setConfirmId(null)
-    await fetch()
-  }
-
-  const RentalRow = ({ r }) => (
-    <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 2px' }}>
-            {r.camera?.name || ''}{r.camera?.name && r.tripod?.name ? ' + ' : ''}{r.tripod?.name || ''}
-          </p>
-          <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 2px' }}>
-            {r.borrower_generation}기 {r.borrower_name} · {r.borrower_contact}
-          </p>
-          <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
-            {r.rental_date} ~ {r.due_date}
-          </p>
-        </div>
-        <button
-          onClick={() => setConfirmId(r.id)}
-          style={{ marginLeft: '12px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#fff', color: '#374151', fontSize: '12px', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
-          반납
-        </button>
-      </div>
-
-      {confirmId === r.id && (
-        <div style={{ marginTop: '10px', padding: '10px 12px', backgroundColor: '#fef2f2', borderRadius: '10px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-          <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>반납 처리할까요?</p>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button onClick={() => setConfirmId(null)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '12px', cursor: 'pointer' }}>취소</button>
-            <button onClick={() => handleReturn(r.id)} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>확인</button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-
-  return (
-    <div>
-      {returnError && (
-        <div style={{ margin: '12px 16px', padding: '10px 12px', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
-          <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>{returnError}</p>
-        </div>
-      )}
-      {loading ? (
-        <p style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>불러오는 중...</p>
-      ) : (
-        <>
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
-            <p style={{ fontSize: '13px', fontWeight: '600', color: '#111827', margin: 0 }}>대여 중 ({rentals.length}건)</p>
-          </div>
-          {rentals.length === 0 && <p style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>현재 대여 중인 장비가 없어요.</p>}
-          {rentals.map((r) => <RentalRow key={r.id} r={r} />)}
-        </>
-      )}
-    </div>
-  )
-}
 
 // ────────────────────────────────────────────────────────────
 // 장비 관리 탭
@@ -121,11 +24,28 @@ function EquipmentManager() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState({ name: '', category: 'camera', brand: '', lens_info: '', guide_text: '', image_url: '' })
   const [saving, setSaving] = useState(false)
+  const [confirmReturnId, setConfirmReturnId] = useState(null)
+  const { returnRental } = useRentalActions()
 
   const fetch = async () => {
-    const { data } = await supabase.from('equipments').select('*').order('category').order('name')
+    const { data } = await supabase
+      .from('equipments')
+      .select('*, current_rental:rentals!current_rental_id(rental_date, borrower_name, borrower_generation)')
+      .order('category')
+      .order('name')
     setEquipments(data || [])
     setLoading(false)
+  }
+
+  const getToday = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  const getEffectiveStatus = (eq) => {
+    if (eq.status !== 'rented') return eq.status
+    if (eq.current_rental?.rental_date > getToday()) return 'available'
+    return 'rented'
   }
 
   useEffect(() => { fetch() }, [])
@@ -166,6 +86,13 @@ function EquipmentManager() {
   const startEdit = (eq) => {
     setEditId(eq.id)
     setForm({ name: eq.name, category: eq.category, brand: eq.brand || '', lens_info: eq.lens_info || '', guide_text: eq.guide_text || '', image_url: eq.image_url || '' })
+  }
+
+  const handleReturn = async (eq) => {
+    if (!eq.current_rental_id) return
+    await returnRental(eq.current_rental_id)
+    setConfirmReturnId(null)
+    fetch()
   }
 
   const inputStyle = { width: '100%', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
@@ -221,19 +148,37 @@ function EquipmentManager() {
               </div>
             </form>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.name}</p>
-                <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>{eq.brand} · {eq.category === 'camera' ? '카메라' : '삼각대'}</p>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.name}</p>
+                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>{eq.brand} · {eq.category === 'camera' ? '카메라' : '삼각대'}</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '11px', fontWeight: '500', color: STATUS_COLOR[getEffectiveStatus(eq)] }}>
+                    {getEffectiveStatus(eq) === 'rented' && eq.current_rental
+                      ? `${eq.current_rental.borrower_generation}기 ${eq.current_rental.borrower_name} 대여중`
+                      : STATUS_LABEL[getEffectiveStatus(eq)]}
+                  </span>
+                  {getEffectiveStatus(eq) === 'rented' && (
+                    <button onClick={() => setConfirmReturnId(eq.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #fecaca', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }}>반납</button>
+                  )}
+                  <button onClick={() => handleStatusToggle(eq)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151' }}>
+                    {eq.status === 'maintenance' ? '복구' : '수리'}
+                  </button>
+                  <button onClick={() => startEdit(eq)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151' }}>정보수정</button>
+                  <button onClick={() => handleDelete(eq.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #fecaca', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }}>삭제</button>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                <span style={{ fontSize: '11px', fontWeight: '500', color: STATUS_COLOR[eq.status] }}>{STATUS_LABEL[eq.status]}</span>
-                <button onClick={() => handleStatusToggle(eq)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151' }}>
-                  {eq.status === 'maintenance' ? '복구' : '수리'}
-                </button>
-                <button onClick={() => startEdit(eq)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151' }}>정보수정</button>
-                <button onClick={() => handleDelete(eq.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #fecaca', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }}>삭제</button>
-              </div>
+              {confirmReturnId === eq.id && (
+                <div style={{ marginTop: '10px', padding: '10px 12px', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>강제 반납 처리할까요?</p>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={() => setConfirmReturnId(null)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '12px', cursor: 'pointer' }}>취소</button>
+                    <button onClick={() => handleReturn(eq)} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>확인</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -570,14 +515,14 @@ function CalendarManager() {
 // 메인 AdminPage
 // ────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState('rental')
+  const [activeTab, setActiveTab] = useState('equipment')
   const navigate = useNavigate()
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #f3f4f6' }}>
-        <p style={{ fontSize: '16px', fontWeight: '700', color: '#111827', margin: 0 }}>관리자</p>
+        <p style={{ fontSize: '16px', fontWeight: '700', color: '#111827', margin: 0 }}>Admin page</p>
         <button onClick={() => navigate('/')} style={{ fontSize: '13px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}>나가기</button>
       </div>
 
@@ -600,7 +545,6 @@ export default function AdminPage() {
       </div>
 
       {/* 탭 내용 */}
-      {activeTab === 'rental' && <RentalManager />}
       {activeTab === 'equipment' && <EquipmentManager />}
       {activeTab === 'member' && <MemberManager />}
       {activeTab === 'calendar' && <CalendarManager />}

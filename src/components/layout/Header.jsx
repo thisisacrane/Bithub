@@ -35,16 +35,21 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center justify-between" style={{ paddingLeft: '24px', paddingRight: '24px' }}>
+      <header className="app-header sticky top-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center justify-between" style={{ paddingLeft: '24px', paddingRight: '24px' }}>
         <span
-          className="text-lg font-bold text-gray-900 cursor-pointer"
-          onClick={() => navigate('/')}
+          className="header-brand-text text-lg font-bold text-gray-900 cursor-pointer"
+          onClick={() => {
+            const d = new Date()
+            const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            sessionStorage.setItem('selectedDate', today)
+            navigate('/', { state: { resetToToday: true } })
+          }}
         >
           Bithub
         </span>
         <button
           onClick={handleLockClick}
-          className="text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+          className="header-lock-btn text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
           style={{ cursor: 'pointer' }}
           aria-label="관리자"
         >
