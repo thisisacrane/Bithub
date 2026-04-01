@@ -297,15 +297,22 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
             )}
           </div>
 
-          {/* 공지사항 확인 */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          {/* 유의사항 확인 */}
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
+            padding: '12px 14px', borderRadius: '10px',
+            backgroundColor: form.notice_confirmed ? '#f0fdf4' : '#fff7ed',
+            border: `1.5px solid ${form.notice_confirmed ? '#86efac' : '#fdba74'}`,
+          }}>
             <input
               type="checkbox"
               checked={form.notice_confirmed}
               onChange={(e) => setField('notice_confirmed', e.target.checked)}
               style={{ width: '18px', height: '18px', accentColor: '#111827', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '13px', color: '#374151' }}>위 공지사항을 모두 확인했습니다.</span>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: form.notice_confirmed ? '#15803d' : '#c2410c' }}>
+              위 대여 유의사항을 모두 확인하였습니다.
+            </span>
           </label>
 
           {/* 에러 */}
