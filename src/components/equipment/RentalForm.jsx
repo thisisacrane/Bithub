@@ -47,7 +47,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     if (!isCamera) return
     supabase
       .from('equipments')
-      .select('id, name, status, current_rental:rentals!current_rental_id(borrower_name, borrower_generation, due_date)')
+      .select('id, name, status, current_rental:rentals!current_rental_id(borrower_name, borrower_generation, rental_date, due_date)')
       .eq('category', 'tripod')
       .order('name')
       .then(({ data }) => setTripods(data || []))
@@ -199,9 +199,10 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
               <label style={labelStyle}>삼각대 추가 선택 <span style={{ fontWeight: '400', color: '#9ca3af' }}>(선택사항)</span></label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {tripods.map((tri) => {
-                  // 기존 대여 due_date가 신규 rental_date보다 이전이면 사용 가능
-                  // (익일 오후 1시 자동반납, 신규 대여는 오후 2시 이후)
-                  const isRented = tri.status === 'rented' && (tri.current_rental?.due_date ?? '') >= form.rental_date
+                  // 신규 rental_date가 기존 대여 기간(rental_date ~ due_date) 안에 있을 때만 비활성화
+                  const isRented = tri.status === 'rented'
+                    && (tri.current_rental?.rental_date ?? '') <= form.rental_date
+                    && (tri.current_rental?.due_date ?? '') >= form.rental_date
                   const isSelected = form.tripod_id === tri.id
                   return (
                     <button
