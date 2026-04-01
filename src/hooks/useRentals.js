@@ -1,19 +1,37 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function getToday() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// 과거 날짜 scheduled 대여를 반납 처리하고, 처리된 건수를 반환
+// 시간 기준으로 상태 자동 처리
+//   scheduled → rented : 대여 당일 오후 2시 (14:00 KST = 05:00 UTC) 이후
+//   rented    → returned: 대여 익일 오후 1시 (13:00 KST = 04:00 UTC) 이후
 async function autoReturnStale(rentals) {
-  const today = getToday()
-  const stale = rentals.filter(r => (r.status === 'scheduled' || r.status === 'rented') && r.rental_date < today)
-  if (stale.length === 0) return false
-  await Promise.all(stale.map(r =>
-    supabase.from('rentals').update({ status: 'returned', returned_at: new Date().toISOString() }).eq('id', r.id)
-  ))
+  const now = new Date()
+  const toActivate = []
+  const toReturn = []
+
+  for (const r of rentals) {
+    const base = new Date(r.rental_date) // midnight UTC of rental_date
+
+    if (r.status === 'scheduled') {
+      // rental_date 당일 05:00 UTC = 14:00 KST
+      const activateAt = new Date(base)
+      activateAt.setUTCHours(5, 0, 0, 0)
+      if (now >= activateAt) toActivate.push(r)
+    } else if (r.status === 'rented') {
+      // rental_date 익일 04:00 UTC = 13:00 KST
+      const returnAt = new Date(base)
+      returnAt.setDate(returnAt.getDate() + 1)
+      returnAt.setUTCHours(4, 0, 0, 0)
+      if (now >= returnAt) toReturn.push(r)
+    }
+  }
+
+  if (toActivate.length === 0 && toReturn.length === 0) return false
+
+  await Promise.all([
+    ...toActivate.map(r => supabase.from('rentals').update({ status: 'rented' }).eq('id', r.id)),
+    ...toReturn.map(r => supabase.from('rentals').update({ status: 'returned', returned_at: new Date().toISOString() }).eq('id', r.id)),
+  ])
   return true
 }
 

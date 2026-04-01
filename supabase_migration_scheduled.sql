@@ -1,5 +1,7 @@
 -- =====================================================
--- Migration: scheduled 상태 추가 + 자동 대여처리 cron
+-- Migration: 대여 상태 전환 시간 변경
+--   - 대여중(rented)   : 대여 당일  오후 2시 (14:00 KST = 05:00 UTC)
+--   - 반납완료(returned): 대여 익일  오후 1시 (13:00 KST = 04:00 UTC)
 -- Supabase SQL Editor에서 전체 실행
 -- =====================================================
 
@@ -10,42 +12,63 @@ ALTER TABLE rentals ADD CONSTRAINT rentals_status_check
 
 
 -- =====================================================
--- 2. 자동처리 함수 (매일 13:00 KST 실행)
---    - scheduled → rented  (rental_date 당일 도래)
---    - rented    → returned (due_date 익일 자동 반납)
---    on_rental_return 트리거가 returned_at 변경을 감지하여
---    장비 status = 'available' 로 자동 복구됨
+-- 2. 기존 cron 잡 모두 제거
 -- =====================================================
-CREATE OR REPLACE FUNCTION process_rental_auto_tasks()
+SELECT cron.unschedule(jobid)
+FROM cron.job
+WHERE command LIKE '%rental%' OR jobname LIKE '%rental%';
+
+
+-- =====================================================
+-- 3. 반납 처리 함수 (04:00 UTC = 13:00 KST 실행)
+--    rented → returned : rental_date 익일 오후 1시 자동 반납
+-- =====================================================
+CREATE OR REPLACE FUNCTION process_rental_auto_return()
 RETURNS void AS $$
 DECLARE
   today_kst DATE := (NOW() AT TIME ZONE 'Asia/Seoul')::DATE;
 BEGIN
-  -- scheduled → rented: rental_date 가 오늘 이하인 예약 활성화
-  UPDATE rentals
-  SET status = 'rented'
-  WHERE status = 'scheduled'
-    AND rental_date <= today_kst;
-
-  -- rented → returned: due_date 당일 오후 1시에 자동 반납
-  -- due_date <= today 이면 반납 처리 (오후 2시 신규 대여와 충돌 없음)
-  -- (on_rental_return 트리거가 장비 상태도 available 로 복구)
+  -- rental_date < today 이면 어제 이전 대여 → 반납 처리
   UPDATE rentals
   SET status = 'returned',
       returned_at = NOW()
   WHERE status = 'rented'
-    AND due_date <= today_kst;
+    AND rental_date < today_kst;
 END;
 $$ LANGUAGE plpgsql;
 
 
 -- =====================================================
--- 3. pg_cron 스케줄 등록 (13:00 KST = 04:00 UTC)
---    Supabase 대시보드 → Database → Extensions 에서
---    pg_cron 이 활성화되어 있어야 합니다.
+-- 4. 대여 활성화 함수 (05:00 UTC = 14:00 KST 실행)
+--    scheduled → rented : rental_date 당일 오후 2시 활성화
 -- =====================================================
+CREATE OR REPLACE FUNCTION process_rental_activate()
+RETURNS void AS $$
+DECLARE
+  today_kst DATE := (NOW() AT TIME ZONE 'Asia/Seoul')::DATE;
+BEGIN
+  UPDATE rentals
+  SET status = 'rented'
+  WHERE status = 'scheduled'
+    AND rental_date <= today_kst;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- =====================================================
+-- 5. 새 cron 잡 등록
+-- =====================================================
+
+-- 반납: 매일 04:00 UTC (13:00 KST)
 SELECT cron.schedule(
-  'auto-rental-tasks',          -- 잡 이름
-  '0 4 * * *',                  -- UTC 04:00 = KST 13:00
-  'SELECT process_rental_auto_tasks()'
+  'auto-rental-return',
+  '0 4 * * *',
+  'SELECT process_rental_auto_return()'
+);
+
+-- 대여 활성화: 매일 05:00 UTC (14:00 KST)
+SELECT cron.schedule(
+  'auto-rental-activate',
+  '0 5 * * *',
+  'SELECT process_rental_activate()'
 );
