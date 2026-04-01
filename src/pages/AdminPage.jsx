@@ -30,21 +30,17 @@ function EquipmentManager() {
   const fetch = async () => {
     const { data } = await supabase
       .from('equipments')
-      .select('*, current_rental:rentals!current_rental_id(rental_date, borrower_name, borrower_generation)')
+      .select('*, current_rental:rentals!current_rental_id(rental_date, borrower_name, borrower_generation, status)')
       .order('category')
       .order('name')
     setEquipments(data || [])
     setLoading(false)
   }
 
-  const getToday = () => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-
   const getEffectiveStatus = (eq) => {
     if (eq.status !== 'rented') return eq.status
-    if (eq.current_rental?.rental_date > getToday()) return 'available'
+    if (!eq.current_rental) return 'rented'
+    if (eq.current_rental.status === 'scheduled') return 'scheduled'
     return 'rented'
   }
 
@@ -96,8 +92,8 @@ function EquipmentManager() {
   }
 
   const inputStyle = { width: '100%', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
-  const STATUS_LABEL = { available: '대여가능', rented: '대여중', maintenance: '수리중' }
-  const STATUS_COLOR = { available: '#16a34a', rented: '#2563eb', maintenance: '#ca8a04' }
+  const STATUS_LABEL = { available: '대여가능', scheduled: '대여 예정', rented: '대여중', maintenance: '수리중' }
+  const STATUS_COLOR = { available: '#16a34a', scheduled: '#d97706', rented: '#2563eb', maintenance: '#ca8a04' }
 
   if (loading) return <p style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>불러오는 중...</p>
 
@@ -156,8 +152,8 @@ function EquipmentManager() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                   <span style={{ fontSize: '11px', fontWeight: '500', color: STATUS_COLOR[getEffectiveStatus(eq)] }}>
-                    {getEffectiveStatus(eq) === 'rented' && eq.current_rental
-                      ? `${eq.current_rental.borrower_generation}기 ${eq.current_rental.borrower_name} 대여중`
+                    {(getEffectiveStatus(eq) === 'rented' || getEffectiveStatus(eq) === 'scheduled') && eq.current_rental
+                      ? `${eq.current_rental.borrower_generation}기 ${eq.current_rental.borrower_name} ${STATUS_LABEL[getEffectiveStatus(eq)]}`
                       : STATUS_LABEL[getEffectiveStatus(eq)]}
                   </span>
                   {getEffectiveStatus(eq) === 'rented' && (
