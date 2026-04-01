@@ -40,7 +40,7 @@ function EquipmentManager() {
   const getEffectiveStatus = (eq) => {
     if (eq.status !== 'rented') return eq.status
     if (!eq.current_rental) return 'rented'
-    if (eq.current_rental.status === 'scheduled') return 'scheduled'
+    if (eq.current_rental.status === 'scheduled') return 'available'
     return 'rented'
   }
 
