@@ -296,12 +296,16 @@ function CalendarManager() {
 
   const getRentalsForDate = (dateStr) => rentals.filter((r) => r.rental_date === dateStr)
 
+  const slideDir = useRef('left')
+
   const prevMonth = () => {
+    slideDir.current = 'right'
     if (month === 1) { setYear((y) => y - 1); setMonth(12) }
     else setMonth((m) => m - 1)
     setSelectedDate(null)
   }
   const nextMonth = () => {
+    slideDir.current = 'left'
     if (month === 12) { setYear((y) => y + 1); setMonth(1) }
     else setMonth((m) => m + 1)
     setSelectedDate(null)
@@ -374,7 +378,8 @@ function CalendarManager() {
         </div>
       </div>
 
-      {/* 요일 헤더 */}
+      {/* 요일 헤더 + 날짜 그리드 (슬라이드 애니메이션) */}
+      <div key={`${year}-${month}`} className={slideDir.current === 'left' ? 'cal-slide-left' : 'cal-slide-right'} style={{ overflow: 'hidden' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '0 8px', marginBottom: '2px' }}>
         {DAYS.map((d, i) => (
           <div key={d} style={{
@@ -435,6 +440,7 @@ function CalendarManager() {
           })}
         </div>
       )}
+      </div>{/* /슬라이드 래퍼 */}
 
       {/* 선택한 날짜의 대여 목록 */}
       {selectedDate && (
