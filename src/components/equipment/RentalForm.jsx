@@ -302,7 +302,6 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
             display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
             padding: '12px 14px', borderRadius: '10px',
             backgroundColor: form.notice_confirmed ? '#f0fdf4' : '#fff7ed',
-            border: `1.5px solid ${form.notice_confirmed ? '#86efac' : '#fdba74'}`,
           }}>
             <input
               type="checkbox"
