@@ -89,3 +89,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .cal-slide-left  { animation: calSlideInFromRight 0.22s ease; }
 .cal-slide-right { animation: calSlideInFromLeft  0.22s ease; }
+
+.purpose-tooltip-wrap:hover .purpose-tooltip {
+  opacity: 1 !important;
+}

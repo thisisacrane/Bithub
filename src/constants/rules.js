@@ -16,7 +16,7 @@ export const RENTAL_CONTACT = {
 }
 
 export const PURPOSE_LABELS = {
-  regular: '정기출사',
+  regular: '공식출사',
   lightning: '번개출사',
   other: '기타',
 }

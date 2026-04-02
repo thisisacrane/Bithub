@@ -288,6 +288,26 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
                     style={{ accentColor: '#111827' }}
                   />
                   {label}
+                  {key === 'regular' && (
+                    <span style={{ position: 'relative', display: 'inline-flex', marginLeft: '-4px' }} className="purpose-tooltip-wrap">
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '12px', height: '12px', borderRadius: '50%',
+                        border: '1px solid #9ca3af', color: '#9ca3af',
+                        fontSize: '9px', cursor: 'default', lineHeight: 1, flexShrink: 0,
+                      }}>?</span>
+                      <span style={{
+                        position: 'absolute', left: '50%', bottom: 'calc(100% + 6px)',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: '#1f2937', color: '#f9fafb',
+                        fontSize: '12px', whiteSpace: 'nowrap',
+                        padding: '4px 8px', borderRadius: '6px',
+                        pointerEvents: 'none', opacity: 0, transition: 'opacity 0.15s',
+                      }} className="purpose-tooltip">
+                        정기출사 · 연합출사 · 장기출사
+                      </span>
+                    </span>
+                  )}
                 </label>
               ))}
             </div>
