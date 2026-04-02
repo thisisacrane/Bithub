@@ -207,6 +207,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
                   const isRented = tri.status === 'rented'
                     && (tri.current_rental?.rental_date ?? '') <= form.rental_date
                     && (tri.current_rental?.due_date ?? '') > form.rental_date
+                  const isScheduled = isRented && (tri.current_rental?.rental_date ?? '') > today()
                   const isSelected = form.tripod_id === tri.id
                   return (
                     <button
@@ -233,7 +234,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
                         backgroundColor: isRented ? '#eff6ff' : isSelected ? '#111827' : '#f3f4f6',
                         color: isRented ? '#3b82f6' : isSelected ? '#fff' : '#6b7280',
                       }}>
-                        {isRented ? `대여중 (${tri.current_rental?.borrower_generation}기 ${tri.current_rental?.borrower_name})` : isSelected ? '선택됨' : '선택'}
+                        {isRented ? `${isScheduled ? '대여 예정' : '대여중'} (${tri.current_rental?.borrower_generation}기 ${tri.current_rental?.borrower_name})` : isSelected ? '선택됨' : '선택'}
                       </span>
                     </button>
                   )
