@@ -119,17 +119,6 @@ export default function HomePage() {
     }
   }, [location.state])
 
-  // 자정이 지나면 selectedDate를 오늘로 리셋
-  useEffect(() => {
-    const now = new Date()
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now + 1000
-    const timer = setTimeout(() => {
-      const today = getToday()
-      handleDateChange(today)
-    }, msUntilMidnight)
-    return () => clearTimeout(timer)
-  }, [])
-
   const handleDateChange = (date) => {
     sessionStorage.setItem('selectedDate', date)
     setSelectedDate(date)
