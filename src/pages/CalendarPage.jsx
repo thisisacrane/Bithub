@@ -15,27 +15,58 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(today.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState(today.getDate())
 
-  const { rentals } = useAllRentals(year, month)
-  const { deleteRental } = useRentalActions()
+  const { rentals, refetch } = useAllRentals(year, month)
+  const { verifyRentalPin, deleteRental } = useRentalActions()
 
   const [deletingRental, setDeletingRental] = useState(null)
+  const [deleteStep, setDeleteStep] = useState('pin') // 'pin' | 'target'
   const [deletePin, setDeletePin] = useState('')
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  const handleDeleteSubmit = async (e) => {
+  const openDeleteModal = (r) => {
+    setDeletingRental(r)
+    setDeleteStep('pin')
+    setDeletePin('')
+    setDeleteError('')
+  }
+
+  const closeDeleteModal = () => {
+    setDeletingRental(null)
+    setDeletePin('')
+    setDeleteError('')
+  }
+
+  const handlePinSubmit = async (e) => {
     e.preventDefault()
     if (!/^\d{4}$/.test(deletePin)) { setDeleteError('숫자 4자리를 입력해주세요.'); return }
     setDeleting(true)
-    const { error } = await deleteRental(deletingRental.id, deletePin)
+    const { valid, error } = await verifyRentalPin(deletingRental.id, deletePin)
+    setDeleting(false)
+    if (!valid) {
+      setDeleteError(error || '비밀번호가 올바르지 않습니다.')
+      setDeletePin('')
+      return
+    }
+    // 카메라 + 삼각대 둘 다 있으면 선택 단계로
+    if (deletingRental.camera?.name && deletingRental.tripod?.name) {
+      setDeleteStep('target')
+      setDeleteError('')
+    } else {
+      // 단일 장비는 바로 삭제
+      await handleTargetDelete('both')
+    }
+  }
+
+  const handleTargetDelete = async (target) => {
+    setDeleting(true)
+    const { error } = await deleteRental(deletingRental.id, deletePin, target)
     setDeleting(false)
     if (error) {
-      setDeleteError(typeof error === 'string' ? error : '비밀번호가 올바르지 않습니다.')
-      setDeletePin('')
+      setDeleteError(typeof error === 'string' ? error : '삭제 중 오류가 발생했습니다.')
     } else {
-      setDeletingRental(null)
-      setDeletePin('')
-      setDeleteError('')
+      closeDeleteModal()
+      refetch()
     }
   }
 
@@ -211,7 +242,7 @@ export default function CalendarPage() {
                   </div>
                   {(r.status === 'scheduled' || r.status === 'rented') && (
                     <button
-                      onClick={() => { setDeletingRental(r); setDeletePin(''); setDeleteError('') }}
+                      onClick={() => openDeleteModal(r)}
                       style={{ flexShrink: 0, background: 'none', border: '1px solid #fca5a5', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}
                     >
                       취소
@@ -226,13 +257,14 @@ export default function CalendarPage() {
 
       <div style={{ height: '16px' }} />
 
-      {/* PIN 확인 모달 */}
+      {/* 취소 모달 */}
       {deletingRental && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}
-          onClick={(e) => e.target === e.currentTarget && setDeletingRental(null)}
+          onClick={(e) => e.target === e.currentTarget && closeDeleteModal()}
         >
           <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '28px 24px 24px', width: '300px', boxShadow: '0 24px 48px rgba(0,0,0,0.12)' }}>
+            {/* 아이콘 */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
               <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -241,43 +273,77 @@ export default function CalendarPage() {
               </div>
             </div>
             <p style={{ fontSize: '15px', fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: '4px' }}>대여 신청 취소</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', marginBottom: '4px' }}>
+            <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', marginBottom: '20px' }}>
               {[deletingRental.camera?.name, deletingRental.tripod?.name].filter(Boolean).join(' + ')}
             </p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', marginBottom: '20px' }}>
-              신청 시 설정한 비밀번호 4자리를 입력해주세요
-            </p>
-            <form onSubmit={handleDeleteSubmit}>
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={deletePin}
-                onChange={(e) => { setDeletePin(e.target.value.replace(/\D/g, '').slice(0, 4)); setDeleteError('') }}
-                placeholder="• • • •"
-                autoFocus
-                style={{
-                  width: '100%', border: deleteError ? '1.5px solid #f87171' : '1.5px solid #e5e7eb',
-                  borderRadius: '10px', padding: '11px 14px', fontSize: '20px', textAlign: 'center',
-                  letterSpacing: '0.3em', outline: 'none', boxSizing: 'border-box', color: '#111827',
-                }}
-              />
-              {deleteError && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', textAlign: 'center' }}>{deleteError}</p>}
-              <button
-                type="submit"
-                disabled={deleting}
-                style={{ width: '100%', marginTop: '12px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
-              >
-                {deleting ? '처리 중...' : '신청 취소'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeletingRental(null)}
-                style={{ width: '100%', marginTop: '8px', padding: '11px', borderRadius: '10px', border: 'none', backgroundColor: 'transparent', color: '#9ca3af', fontSize: '13px', cursor: 'pointer' }}
-              >
-                돌아가기
-              </button>
-            </form>
+
+            {deleteStep === 'pin' ? (
+              /* 1단계: PIN 입력 */
+              <form onSubmit={handlePinSubmit}>
+                <p style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center', marginBottom: '12px' }}>
+                  신청 시 설정한 비밀번호 4자리를 입력해주세요
+                </p>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={deletePin}
+                  onChange={(e) => { setDeletePin(e.target.value.replace(/\D/g, '').slice(0, 4)); setDeleteError('') }}
+                  placeholder="• • • •"
+                  autoFocus
+                  style={{
+                    width: '100%', border: deleteError ? '1.5px solid #f87171' : '1.5px solid #e5e7eb',
+                    borderRadius: '10px', padding: '11px 14px', fontSize: '20px', textAlign: 'center',
+                    letterSpacing: '0.3em', outline: 'none', boxSizing: 'border-box', color: '#111827',
+                  }}
+                />
+                {deleteError && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', textAlign: 'center' }}>{deleteError}</p>}
+                <button
+                  type="submit"
+                  disabled={deleting}
+                  style={{ width: '100%', marginTop: '12px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: '#111827', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+                >
+                  {deleting ? '확인 중...' : '확인'}
+                </button>
+                <button type="button" onClick={closeDeleteModal} style={{ width: '100%', marginTop: '8px', padding: '11px', borderRadius: '10px', border: 'none', backgroundColor: 'transparent', color: '#9ca3af', fontSize: '13px', cursor: 'pointer' }}>
+                  돌아가기
+                </button>
+              </form>
+            ) : (
+              /* 2단계: 취소 대상 선택 */
+              <div>
+                <p style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center', marginBottom: '16px' }}>
+                  어떤 항목을 취소할까요?
+                </p>
+                {deleteError && <p style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px', textAlign: 'center' }}>{deleteError}</p>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => handleTargetDelete('camera')}
+                    disabled={deleting}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #fca5a5', backgroundColor: '#fff', color: '#b91c1c', fontSize: '14px', fontWeight: '500', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+                  >
+                    {deletingRental.camera?.name}만 취소
+                  </button>
+                  <button
+                    onClick={() => handleTargetDelete('tripod')}
+                    disabled={deleting}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #fca5a5', backgroundColor: '#fff', color: '#b91c1c', fontSize: '14px', fontWeight: '500', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+                  >
+                    {deletingRental.tripod?.name}만 취소
+                  </button>
+                  <button
+                    onClick={() => handleTargetDelete('both')}
+                    disabled={deleting}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+                  >
+                    {deleting ? '처리 중...' : '둘 다 취소'}
+                  </button>
+                </div>
+                <button type="button" onClick={() => setDeleteStep('pin')} style={{ width: '100%', marginTop: '8px', padding: '11px', borderRadius: '10px', border: 'none', backgroundColor: 'transparent', color: '#9ca3af', fontSize: '13px', cursor: 'pointer' }}>
+                  돌아가기
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

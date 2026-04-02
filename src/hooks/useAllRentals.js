@@ -67,5 +67,5 @@ export function useAllRentals(year, month) {
     return () => supabase.removeChannel(channel)
   }, [year, month])
 
-  return { rentals, loading }
+  return { rentals, loading, refetch: fetch }
 }

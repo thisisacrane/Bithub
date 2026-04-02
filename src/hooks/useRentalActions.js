@@ -46,8 +46,20 @@ export function useRentalActions() {
     return { data, error }
   }
 
-  const deleteRental = async (rentalId, pin) => {
-    // PIN 확인을 위해 대여 정보 조회
+  const verifyRentalPin = async (rentalId, pin) => {
+    const { data: rental, error: fetchError } = await supabase
+      .from('rentals')
+      .select('id, pin')
+      .eq('id', rentalId)
+      .single()
+
+    if (fetchError || !rental) return { valid: false, error: '대여 정보를 찾을 수 없습니다.' }
+    if (rental.pin !== pin) return { valid: false, error: '비밀번호가 올바르지 않습니다.' }
+    return { valid: true }
+  }
+
+  // target: 'camera' | 'tripod' | 'both'
+  const deleteRental = async (rentalId, pin, target = 'both') => {
     const { data: rental, error: fetchError } = await supabase
       .from('rentals')
       .select('id, pin, status, camera_id, tripod_id')
@@ -57,25 +69,33 @@ export function useRentalActions() {
     if (fetchError || !rental) return { error: '대여 정보를 찾을 수 없습니다.' }
     if (rental.pin !== pin) return { error: '비밀번호가 올바르지 않습니다.' }
 
-    // 아직 활성 상태면 장비 상태 복구
-    if (rental.status === 'rented' || rental.status === 'scheduled') {
-      if (rental.camera_id) {
-        await supabase
-          .from('equipments')
-          .update({ status: 'available', current_rental_id: null })
-          .eq('id', rental.camera_id)
-      }
-      if (rental.tripod_id) {
-        await supabase
-          .from('equipments')
-          .update({ status: 'available', current_rental_id: null })
-          .eq('id', rental.tripod_id)
-      }
-    }
+    const isActive = rental.status === 'rented' || rental.status === 'scheduled'
 
-    const { error } = await supabase.from('rentals').delete().eq('id', rentalId)
-    return { error }
+    if (target === 'camera') {
+      if (isActive && rental.camera_id) {
+        await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.camera_id)
+      }
+      const { error } = await supabase.from('rentals').update({ camera_id: null }).eq('id', rental.id)
+      return { error }
+    } else if (target === 'tripod') {
+      if (isActive && rental.tripod_id) {
+        await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.tripod_id)
+      }
+      const { error } = await supabase.from('rentals').update({ tripod_id: null }).eq('id', rental.id)
+      return { error }
+    } else {
+      if (isActive) {
+        if (rental.camera_id) {
+          await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.camera_id)
+        }
+        if (rental.tripod_id) {
+          await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.tripod_id)
+        }
+      }
+      const { error } = await supabase.from('rentals').delete().eq('id', rentalId)
+      return { error }
+    }
   }
 
-  return { createRental, returnRental, deleteRental }
+  return { createRental, returnRental, verifyRentalPin, deleteRental }
 }

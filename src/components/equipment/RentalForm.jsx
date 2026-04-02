@@ -77,6 +77,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     if (!form.borrower_contact) return setError('연락처를 입력해주세요.')
     if (!form.camera_id && !form.tripod_id) return setError('장비를 최소 하나 선택해주세요.')
     if (!form.notice_confirmed) return setError('공지사항을 확인해주세요.')
+    if (form.purpose === 'other' && !form.purpose_detail.trim()) return setError('기타 목적을 입력해주세요.')
     if (!/^\d{4}$/.test(form.pin)) return setError('비밀번호는 숫자 4자리로 입력해주세요.')
 
     const conflict = existingRentals.find(
@@ -302,14 +303,14 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
 
           {/* 삭제용 비밀번호 */}
           <div>
-            <label style={labelStyle}>삭제 비밀번호 <span style={{ fontWeight: '400', color: '#ef4444' }}>*</span></label>
+            <label style={labelStyle}>삭제 비밀번호(숫자 4자리)</label>
             <input
               type="password"
               inputMode="numeric"
               maxLength={4}
               value={form.pin}
               onChange={(e) => setField('pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="숫자 4자리"
+              placeholder="• • • •"
               style={{ ...inputStyle, textAlign: 'center', letterSpacing: '0.2em', fontSize: '18px' }}
             />
             <p style={{ fontSize: '12px', color: '#f97316', marginTop: '6px', lineHeight: '1.5' }}>
