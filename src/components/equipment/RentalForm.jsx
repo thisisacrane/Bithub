@@ -38,6 +38,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     purpose: 'regular',
     purpose_detail: '',
     notice_confirmed: false,
+    pin: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -76,6 +77,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     if (!form.borrower_contact) return setError('연락처를 입력해주세요.')
     if (!form.camera_id && !form.tripod_id) return setError('장비를 최소 하나 선택해주세요.')
     if (!form.notice_confirmed) return setError('공지사항을 확인해주세요.')
+    if (!/^\d{4}$/.test(form.pin)) return setError('비밀번호는 숫자 4자리로 입력해주세요.')
 
     const conflict = existingRentals.find(
       (r) => (r.status === 'rented' || r.status === 'scheduled') && r.rental_date === form.rental_date
@@ -99,6 +101,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
       purpose: form.purpose,
       purpose_detail: form.purpose === 'other' ? form.purpose_detail : null,
       notice_confirmed: form.notice_confirmed,
+      pin: form.pin,
     }
 
     const { error } = await createRental(payload)
@@ -295,6 +298,23 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
                 onChange={(e) => setField('purpose_detail', e.target.value)}
               />
             )}
+          </div>
+
+          {/* 삭제용 비밀번호 */}
+          <div>
+            <label style={labelStyle}>삭제 비밀번호 <span style={{ fontWeight: '400', color: '#ef4444' }}>*</span></label>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={form.pin}
+              onChange={(e) => setField('pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="숫자 4자리"
+              style={{ ...inputStyle, textAlign: 'center', letterSpacing: '0.2em', fontSize: '18px' }}
+            />
+            <p style={{ fontSize: '12px', color: '#f97316', marginTop: '6px', lineHeight: '1.5' }}>
+              ⚠️ 나중에 대여 신청을 취소할 때 필요하니 꼭 기억해두세요!
+            </p>
           </div>
 
           {/* 유의사항 확인 */}

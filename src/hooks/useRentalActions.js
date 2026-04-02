@@ -46,5 +46,36 @@ export function useRentalActions() {
     return { data, error }
   }
 
-  return { createRental, returnRental }
+  const deleteRental = async (rentalId, pin) => {
+    // PIN 확인을 위해 대여 정보 조회
+    const { data: rental, error: fetchError } = await supabase
+      .from('rentals')
+      .select('id, pin, status, camera_id, tripod_id')
+      .eq('id', rentalId)
+      .single()
+
+    if (fetchError || !rental) return { error: '대여 정보를 찾을 수 없습니다.' }
+    if (rental.pin !== pin) return { error: '비밀번호가 올바르지 않습니다.' }
+
+    // 아직 활성 상태면 장비 상태 복구
+    if (rental.status === 'rented' || rental.status === 'scheduled') {
+      if (rental.camera_id) {
+        await supabase
+          .from('equipments')
+          .update({ status: 'available', current_rental_id: null })
+          .eq('id', rental.camera_id)
+      }
+      if (rental.tripod_id) {
+        await supabase
+          .from('equipments')
+          .update({ status: 'available', current_rental_id: null })
+          .eq('id', rental.tripod_id)
+      }
+    }
+
+    const { error } = await supabase.from('rentals').delete().eq('id', rentalId)
+    return { error }
+  }
+
+  return { createRental, returnRental, deleteRental }
 }
