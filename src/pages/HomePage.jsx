@@ -105,9 +105,11 @@ export default function HomePage() {
   const { equipments, loading, error } = useEquipments()
   const { rentals: allRentals } = useAllRentals()
   const [activeTab, setActiveTab] = useState('all')
-  const [selectedDate, setSelectedDate] = useState(
-    () => sessionStorage.getItem('selectedDate') || getToday()
-  )
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const stored = sessionStorage.getItem('selectedDate')
+    const today = getToday()
+    return (stored && stored >= today) ? stored : today
+  })
   const location = useLocation()
 
   useEffect(() => {
@@ -116,6 +118,17 @@ export default function HomePage() {
       setSelectedDate(today)
     }
   }, [location.state])
+
+  // 자정이 지나면 selectedDate를 오늘로 리셋
+  useEffect(() => {
+    const now = new Date()
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now + 1000
+    const timer = setTimeout(() => {
+      const today = getToday()
+      handleDateChange(today)
+    }, msUntilMidnight)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleDateChange = (date) => {
     sessionStorage.setItem('selectedDate', date)
@@ -131,7 +144,7 @@ export default function HomePage() {
       {/* 카테고리 탭 */}
       <div
         className="flex gap-2"
-        style={{ padding: '16px 16px 12px', borderBottom: '1px solid #f3f4f6' }}
+        style={{ padding: '16px 16px 12px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
       >
         {TABS.map(({ key, label }) => (
           <button
@@ -200,9 +213,28 @@ export default function HomePage() {
             </p>
           </div>
         </div>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDateChange(getToday()) }}
+            style={{
+              padding: '5px 12px',
+              borderRadius: '9999px',
+              border: '1.5px solid #e5e7eb',
+              backgroundColor: '#fff',
+              color: '#374151',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              zIndex: 1,
+              position: 'relative',
+            }}
+          >
+            오늘
+          </button>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
         <input
           id="home-date-input"
           type="date"
