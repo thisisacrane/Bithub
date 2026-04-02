@@ -55,18 +55,12 @@ export function useEquipmentRentals(equipmentId) {
     if (!equipmentId) return
     fetch()
 
-    // 자정이 지나면 자동 갱신 (autoReturnStale 재실행)
-    const now = new Date()
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now + 1000
-    const midnightTimer = setTimeout(() => fetch(), msUntilMidnight)
-
     const channel = supabase
       .channel(`rentals-${equipmentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals' }, fetch)
       .subscribe()
 
     return () => {
-      clearTimeout(midnightTimer)
       supabase.removeChannel(channel)
     }
   }, [equipmentId])
@@ -105,18 +99,12 @@ export function useAllRentals() {
   useEffect(() => {
     fetchAll()
 
-    // 자정이 지나면 자동 갱신 (autoReturnStale 재실행)
-    const now = new Date()
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now + 1000
-    const midnightTimer = setTimeout(() => fetchAll(), msUntilMidnight)
-
     const channel = supabase
       .channel('all-rentals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals' }, fetchAll)
       .subscribe()
 
     return () => {
-      clearTimeout(midnightTimer)
       supabase.removeChannel(channel)
     }
   }, [])
