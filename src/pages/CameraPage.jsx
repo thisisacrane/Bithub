@@ -123,7 +123,7 @@ export default function CameraPage() {
           {equipment.lens_info && <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>{equipment.lens_info}</p>}
           {(() => {
             const rentalsOnDate = rentals.filter(
-              (r) => (r.status === 'rented' || r.status === 'scheduled') && selectedDate >= r.rental_date && selectedDate < r.due_date
+              (r) => (r.status === 'rented' || r.status === 'scheduled' || r.status === 'returned') && selectedDate >= r.rental_date && selectedDate < r.due_date
             )
             const matchedRental = rentalsOnDate.find(r => r.status === 'rented') || rentalsOnDate[0]
             return <StatusBadge status={equipment.status} rental={matchedRental} selectedDate={selectedDate} />
