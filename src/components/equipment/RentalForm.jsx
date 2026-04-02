@@ -109,7 +109,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     setSubmitting(false)
 
     if (error) {
-      setError('대여 신청 중 오류가 발생했습니다.')
+      setError(typeof error === 'string' ? error : '대여 신청 중 오류가 발생했습니다.')
     } else {
       onSuccess()
     }

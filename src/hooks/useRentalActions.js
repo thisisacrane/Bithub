@@ -23,6 +23,10 @@ export function useRentalActions() {
       .select()
       .single()
 
+    if (error?.code === '23505') {
+      return { data: null, error: `${insertPayload.rental_date}에 이미 대여 신청이 있어요. 다른 날짜를 선택해주세요.` }
+    }
+
     // 과거 날짜 대여 → 장비 상태를 다시 available로 복구
     if (!error && isPast) {
       if (payload.camera_id) {
