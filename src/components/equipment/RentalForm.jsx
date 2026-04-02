@@ -76,7 +76,7 @@ export default function RentalForm({ equipment, existingRentals = [], selectedDa
     if (!form.borrower_generation) return setError('기수를 입력해주세요.')
     if (!form.borrower_contact) return setError('연락처를 입력해주세요.')
     if (!form.camera_id && !form.tripod_id) return setError('장비를 최소 하나 선택해주세요.')
-    if (!form.notice_confirmed) return setError('공지사항을 확인해주세요.')
+    if (!form.notice_confirmed) return setError('대여 유의사항을 확인해주세요.')
     if (form.purpose === 'other' && !form.purpose_detail.trim()) return setError('기타 목적을 입력해주세요.')
     if (!/^\d{4}$/.test(form.pin)) return setError('비밀번호는 숫자 4자리로 입력해주세요.')
 

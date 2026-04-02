@@ -240,7 +240,7 @@ export default function CalendarPage() {
                       {r.rental_date} 14:00 ~ {r.due_date} 13:00
                     </p>
                   </div>
-                  {(r.status === 'scheduled' || r.status === 'rented') && (
+                  {(r.status === 'scheduled' || r.status === 'rented') && !(r.purpose === 'regular' && r.rental_date === todayStr) && (
                     <button
                       onClick={() => openDeleteModal(r)}
                       style={{ flexShrink: 0, background: 'none', border: '1px solid #fca5a5', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}

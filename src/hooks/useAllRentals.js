@@ -22,6 +22,7 @@ export function useAllRentals(year, month) {
         rental_date,
         due_date,
         status,
+        purpose,
         camera:equipments!camera_id(name),
         tripod:equipments!tripod_id(name)
       `)
@@ -42,6 +43,7 @@ export function useAllRentals(year, month) {
         rental_date,
         due_date,
         status,
+        purpose,
         camera:equipments!camera_id(name),
         tripod:equipments!tripod_id(name)
       `)

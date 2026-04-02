@@ -119,8 +119,11 @@ export default function HomePage() {
     }
   }, [location.state])
 
+  useEffect(() => {
+    sessionStorage.setItem('selectedDate', selectedDate)
+  }, [selectedDate])
+
   const handleDateChange = (date) => {
-    sessionStorage.setItem('selectedDate', date)
     setSelectedDate(date)
   }
 
