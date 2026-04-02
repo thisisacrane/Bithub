@@ -5,13 +5,18 @@ export default function EquipmentCard({ equipment, selectedDate, allRentals = []
   const navigate = useNavigate()
 
   // 이 장비에 대해 선택한 날짜에 해당하는 대여 찾기
-  const matchedRental = allRentals.find((r) => {
-    if (r.status !== 'rented' && r.status !== 'scheduled') return false
+  // rented가 scheduled보다 우선 (같은 날 두 건이 겹칠 때 현재 대여중인 쪽을 표시)
+  const rentalsOnDate = allRentals.filter((r) => {
+    if (r.status !== 'rented' && r.status !== 'scheduled' && r.status !== 'returned') return false
     const isThisEquipment = r.camera_id === equipment.id || r.tripod_id === equipment.id
-    // due_date 당일은 오후 1시 자동반납 후 오후 2시 신규 대여 가능하므로 < 로 체크
     const isOnDate = selectedDate >= r.rental_date && selectedDate < r.due_date
     return isThisEquipment && isOnDate
   })
+  // 우선순위: 대여중 > 대여 예정 > 반납완료
+  const matchedRental =
+    rentalsOnDate.find(r => r.status === 'rented') ||
+    rentalsOnDate.find(r => r.status === 'scheduled') ||
+    rentalsOnDate[0]
 
   const isUnavailable = !!matchedRental || equipment.status === 'maintenance'
 

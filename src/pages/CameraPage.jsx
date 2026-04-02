@@ -122,9 +122,10 @@ export default function CameraPage() {
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', margin: '0 0 8px' }}>{equipment.name}</h1>
           {equipment.lens_info && <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>{equipment.lens_info}</p>}
           {(() => {
-            const matchedRental = rentals.find(
+            const rentalsOnDate = rentals.filter(
               (r) => (r.status === 'rented' || r.status === 'scheduled') && selectedDate >= r.rental_date && selectedDate < r.due_date
             )
+            const matchedRental = rentalsOnDate.find(r => r.status === 'rented') || rentalsOnDate[0]
             return <StatusBadge status={equipment.status} rental={matchedRental} selectedDate={selectedDate} />
           })()}
         </div>
@@ -138,9 +139,10 @@ export default function CameraPage() {
         {/* 액션 버튼 */}
         {equipment.status === 'maintenance' ? null : (() => {
           // 선택한 날짜에 이미 대여가 있는지 확인 (대여 기간 범위로 체크)
-          const conflictRental = rentals.find(
+          const conflictRentals = rentals.filter(
             (r) => (r.status === 'rented' || r.status === 'scheduled') && selectedDate >= r.rental_date && selectedDate < r.due_date
           )
+          const conflictRental = conflictRentals.find(r => r.status === 'rented') || conflictRentals[0]
           const isRentedOnDate = !!conflictRental
           return isRentedOnDate ? (
             <button
@@ -170,7 +172,7 @@ export default function CameraPage() {
           const _d = new Date()
           const todayStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`
           const upcoming = rentals
-            .filter(r => r.rental_date > todayStr && (r.status === 'rented' || r.status === 'scheduled'))
+            .filter(r => (r.status === 'scheduled' || r.status === 'rented') && r.rental_date > todayStr)
             .sort((a, b) => a.rental_date.localeCompare(b.rental_date))
           if (upcoming.length === 0) return null
           return (
@@ -201,7 +203,9 @@ export default function CameraPage() {
         {rentals.length > 0 && (() => {
           const _d2 = new Date()
           const todayStr = `${_d2.getFullYear()}-${String(_d2.getMonth()+1).padStart(2,'0')}-${String(_d2.getDate()).padStart(2,'0')}`
-          const pastRentals = rentals.filter(r => r.rental_date <= todayStr)
+          const pastRentals = rentals.filter(r =>
+            r.rental_date <= todayStr && (r.status !== 'scheduled' || r.rental_date === todayStr)
+          )
           if (pastRentals.length === 0) return null
           const latest = pastRentals[0]
           return (
@@ -216,13 +220,15 @@ export default function CameraPage() {
                     {formatDate(latest.rental_date)} · {PURPOSE_LABELS[latest.purpose]}
                   </p>
                 </div>
-                <span style={{
-                  fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '9999px',
-                  backgroundColor: latest.status === 'returned' ? '#f3f4f6' : '#eff6ff',
-                  color: latest.status === 'returned' ? '#9ca3af' : '#3b82f6',
-                }}>
-                  {latest.status === 'returned' ? '반납완료' : '대여중'}
-                </span>
+                {(latest.status === 'returned' || latest.rental_date === todayStr) && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '9999px',
+                    backgroundColor: latest.status === 'returned' ? '#f3f4f6' : '#eff6ff',
+                    color: latest.status === 'returned' ? '#9ca3af' : '#3b82f6',
+                  }}>
+                    {latest.status === 'returned' ? '반납완료' : '대여중'}
+                  </span>
+                )}
               </div>
             </div>
           )

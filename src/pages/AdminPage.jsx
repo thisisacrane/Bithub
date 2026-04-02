@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useRentalActions } from '../hooks/useRentalActions'
+import { autoReturnStale } from '../hooks/useRentals'
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -24,22 +24,32 @@ function EquipmentManager() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState({ name: '', category: 'camera', brand: '', lens_info: '', guide_text: '', image_url: '' })
   const [saving, setSaving] = useState(false)
-  const [confirmReturnId, setConfirmReturnId] = useState(null)
-  const { returnRental } = useRentalActions()
 
   const fetch = async () => {
+    const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
     const [{ data: eqData }, { data: rentalData }] = await Promise.all([
       supabase.from('equipments').select('*').order('category').order('name'),
       supabase.from('rentals')
         .select('id, status, rental_date, due_date, borrower_name, borrower_generation, camera_id, tripod_id')
-        .eq('status', 'rented'),
+        .in('status', ['rented', 'scheduled'])
+        .eq('rental_date', today),
     ])
 
-    const activeRentals = rentalData || []
-    const merged = (eqData || []).map((eq) => ({
-      ...eq,
-      active_rental: activeRentals.find((r) => r.camera_id === eq.id || r.tripod_id === eq.id) || null,
-    }))
+    const fetched = rentalData || []
+    const hadStale = await autoReturnStale(fetched)
+    const todayRentals = hadStale
+      ? ((await supabase.from('rentals')
+          .select('id, status, rental_date, due_date, borrower_name, borrower_generation, camera_id, tripod_id')
+          .in('status', ['rented', 'scheduled'])
+          .eq('rental_date', today)).data || [])
+      : fetched
+
+    const merged = (eqData || []).map((eq) => {
+      const rentalsForEq = todayRentals.filter((r) => r.camera_id === eq.id || r.tripod_id === eq.id)
+      const active_rental = rentalsForEq.find((r) => r.status === 'rented') || rentalsForEq[0] || null
+      return { ...eq, active_rental }
+    })
     setEquipments(merged)
     setLoading(false)
   }
@@ -89,15 +99,8 @@ function EquipmentManager() {
     setForm({ name: eq.name, category: eq.category, brand: eq.brand || '', lens_info: eq.lens_info || '', guide_text: eq.guide_text || '', image_url: eq.image_url || '' })
   }
 
-  const handleReturn = async (eq) => {
-    if (!eq.active_rental?.id) return
-    await returnRental(eq.active_rental.id)
-    setConfirmReturnId(null)
-    fetch()
-  }
-
   const inputStyle = { width: '100%', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
-  const STATUS_LABEL = { available: '대여가능', scheduled: '대여 예정', rented: '대여중', maintenance: '수리중' }
+  const STATUS_LABEL = { available: '대여 가능', scheduled: '대여 예정', rented: '대여중', maintenance: '수리중' }
   const STATUS_COLOR = { available: '#16a34a', scheduled: '#d97706', rented: '#2563eb', maintenance: '#ca8a04' }
 
   if (loading) return <p style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>불러오는 중...</p>
@@ -161,9 +164,6 @@ function EquipmentManager() {
                       ? `${eq.active_rental.borrower_generation}기 ${eq.active_rental.borrower_name} 대여중`
                       : STATUS_LABEL[getEffectiveStatus(eq)]}
                   </span>
-                  {getEffectiveStatus(eq) === 'rented' && (
-                    <button onClick={() => setConfirmReturnId(eq.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #fecaca', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }}>반납</button>
-                  )}
                   <button onClick={() => handleStatusToggle(eq)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151' }}>
                     {eq.status === 'maintenance' ? '복구' : '수리'}
                   </button>
@@ -171,15 +171,6 @@ function EquipmentManager() {
                   <button onClick={() => handleDelete(eq.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #fecaca', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }}>삭제</button>
                 </div>
               </div>
-              {confirmReturnId === eq.id && (
-                <div style={{ marginTop: '10px', padding: '10px 12px', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>강제 반납 처리할까요?</p>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button onClick={() => setConfirmReturnId(null)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '12px', cursor: 'pointer' }}>취소</button>
-                    <button onClick={() => handleReturn(eq)} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>확인</button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -251,6 +242,9 @@ function CalendarManager() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [editingMemoId, setEditingMemoId] = useState(null)
+  const [memoText, setMemoText] = useState('')
+  const [savingMemo, setSavingMemo] = useState(false)
 
   const fetchRentals = async () => {
     setLoading(true)
@@ -264,10 +258,12 @@ function CalendarManager() {
         id,
         borrower_name,
         borrower_generation,
+        borrower_department,
         borrower_contact,
         rental_date,
         due_date,
         status,
+        memo,
         camera_id,
         tripod_id,
         camera:equipments!camera_id(name),
@@ -277,7 +273,33 @@ function CalendarManager() {
       .gte('due_date', from)
       .order('rental_date')
 
-    setRentals(data || [])
+    const fetched = data || []
+    const hadStale = await autoReturnStale(fetched)
+    if (hadStale) {
+      const { data: fresh } = await supabase
+        .from('rentals')
+        .select(`
+        id,
+        borrower_name,
+        borrower_generation,
+        borrower_department,
+        borrower_contact,
+        rental_date,
+        due_date,
+        status,
+        memo,
+        camera_id,
+        tripod_id,
+        camera:equipments!camera_id(name),
+        tripod:equipments!tripod_id(name)
+      `)
+        .lte('rental_date', to)
+        .gte('due_date', from)
+        .order('rental_date')
+      setRentals(fresh || [])
+    } else {
+      setRentals(fetched)
+    }
     setLoading(false)
   }
 
@@ -312,23 +334,46 @@ function CalendarManager() {
     setSelectedDate(null)
   }
 
-  const handleDelete = async (rental) => {
+  const saveMemo = async (rentalId) => {
+    setSavingMemo(true)
+    await supabase.from('rentals').update({ memo: memoText }).eq('id', rentalId)
+    setRentals((prev) => prev.map((r) => r.id === rentalId ? { ...r, memo: memoText } : r))
+    setSavingMemo(false)
+    setEditingMemoId(null)
+  }
+
+  // target: 'camera' | 'tripod' | 'both'
+  const handleDelete = async (rental, target) => {
     setDeleting(true)
     setDeleteError('')
     try {
-      // 1) 장비의 current_rental_id를 먼저 해제 (FK 충돌 방지)
-      if (rental.camera_id) {
-        await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.camera_id)
-      }
-      if (rental.tripod_id) {
-        await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.tripod_id)
-      }
-
-      // 2) 대여 건 삭제 (.select()로 실제 삭제 여부 확인)
-      const { data, error } = await supabase.from('rentals').delete().eq('id', rental.id).select()
-      if (error) throw error
-      if (!data || data.length === 0) {
-        throw new Error('RLS 정책에 DELETE 권한이 없습니다. Supabase에서 rentals 테이블에 DELETE 정책을 추가해 주세요.')
+      if (target === 'camera') {
+        // 카메라만 삭제: 장비 해제 후 rental에서 camera_id만 null로
+        if (rental.camera_id) {
+          await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.camera_id)
+        }
+        const { error } = await supabase.from('rentals').update({ camera_id: null }).eq('id', rental.id)
+        if (error) throw error
+      } else if (target === 'tripod') {
+        // 삼각대만 삭제: 장비 해제 후 rental에서 tripod_id만 null로
+        if (rental.tripod_id) {
+          await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.tripod_id)
+        }
+        const { error } = await supabase.from('rentals').update({ tripod_id: null }).eq('id', rental.id)
+        if (error) throw error
+      } else {
+        // 둘 다 삭제: 장비 모두 해제 후 대여 건 삭제
+        if (rental.camera_id) {
+          await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.camera_id)
+        }
+        if (rental.tripod_id) {
+          await supabase.from('equipments').update({ status: 'available', current_rental_id: null }).eq('id', rental.tripod_id)
+        }
+        const { data, error } = await supabase.from('rentals').delete().eq('id', rental.id).select()
+        if (error) throw error
+        if (!data || data.length === 0) {
+          throw new Error('RLS 정책에 DELETE 권한이 없습니다. Supabase에서 rentals 테이블에 DELETE 정책을 추가해 주세요.')
+        }
       }
 
       setConfirmDeleteId(null)
@@ -342,8 +387,8 @@ function CalendarManager() {
 
   const selectedRentals = selectedDate ? getRentalsForDate(toDateStr(selectedDate)) : []
 
-  const STATUS_LABEL = { rented: '대여중', returned: '반납완료' }
-  const STATUS_COLOR = { rented: '#2563eb', returned: '#16a34a' }
+  const STATUS_LABEL = { scheduled: '대여 예정', rented: '대여중', returned: '반납완료' }
+  const STATUS_COLOR = { scheduled: '#7c3aed', rented: '#2563eb', returned: '#16a34a' }
 
   const touchStartX = useRef(null)
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
@@ -467,11 +512,11 @@ function CalendarManager() {
                         {r.camera?.name || ''}{r.camera?.name && r.tripod?.name ? ' + ' : ''}{r.tripod?.name || ''}
                       </p>
                       <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 2px' }}>
-                        {r.borrower_generation}기 {r.borrower_name}{r.borrower_contact ? ` · ${r.borrower_contact}` : ''}
+                        {r.borrower_generation}기 {r.borrower_name}{r.borrower_department ? ` · ${r.borrower_department}` : ''}{r.borrower_contact ? ` · ${r.borrower_contact}` : ''}
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                         <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
-                          {r.rental_date} ~ {r.due_date}
+                          {r.rental_date} 14:00 ~ {r.due_date} 13:00
                         </p>
                         <span style={{ fontSize: '10px', fontWeight: '500', color: STATUS_COLOR[r.status] || '#6b7280', backgroundColor: r.status === 'rented' ? '#eff6ff' : '#f0fdf4', padding: '1px 6px', borderRadius: '4px' }}>
                           {STATUS_LABEL[r.status] || r.status}
@@ -490,30 +535,88 @@ function CalendarManager() {
                     </button>
                   </div>
 
+                  {/* 특이사항 */}
+                  {editingMemoId === r.id ? (
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <textarea
+                        autoFocus
+                        value={memoText}
+                        onChange={(e) => setMemoText(e.target.value)}
+                        placeholder="특이사항을 입력하세요"
+                        rows={2}
+                        style={{ width: '100%', fontSize: '12px', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px', resize: 'none', outline: 'none', boxSizing: 'border-box', color: '#374151' }}
+                      />
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        <button onClick={() => setEditingMemoId(null)} style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                        <button onClick={() => saveMemo(r.id)} disabled={savingMemo} style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#111827', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
+                          {savingMemo ? '저장 중...' : '저장'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => { setEditingMemoId(r.id); setMemoText(r.memo || '') }}
+                      style={{ marginTop: '8px', padding: '6px 8px', borderRadius: '6px', backgroundColor: '#f9fafb', border: '1px dashed #e5e7eb', cursor: 'pointer', minHeight: '28px' }}
+                    >
+                      {r.memo
+                        ? <p style={{ fontSize: '12px', color: '#374151', margin: 0 }}>{r.memo}</p>
+                        : <p style={{ fontSize: '12px', color: '#d1d5db', margin: 0 }}>특이사항 없음 (클릭하여 입력)</p>
+                      }
+                    </div>
+                  )}
+
                   {/* 삭제 확인 */}
                   {confirmDeleteId === r.id && (
                     <div style={{
                       marginTop: '10px', padding: '10px 12px', backgroundColor: '#fef2f2',
                       borderRadius: '8px', border: '1px solid #fecaca',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
                     }}>
-                      <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>
-                        이 대여 건을 삭제할까요?{r.status === 'rented' ? ' (장비가 대여가능으로 변경됩니다)' : ''}
+                      <p style={{ fontSize: '12px', color: '#991b1b', margin: '0 0 8px' }}>
+                        {r.camera?.name && r.tripod?.name
+                          ? '어떤 항목을 삭제할까요?'
+                          : `이 대여 건을 삭제할까요?${r.status === 'rented' ? ' (장비가 대여가능으로 변경됩니다)' : ''}`
+                        }
                       </p>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
                           style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '12px', cursor: 'pointer' }}
                         >
                           취소
                         </button>
-                        <button
-                          onClick={() => handleDelete(r)}
-                          disabled={deleting}
-                          style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                        >
-                          {deleting ? '삭제 중...' : '확인'}
-                        </button>
+                        {r.camera?.name && r.tripod?.name ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(r, 'camera')}
+                              disabled={deleting}
+                              style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #fca5a5', backgroundColor: '#fff', color: '#b91c1c', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+                            >
+                              {deleting ? '...' : `카메라만`}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(r, 'tripod')}
+                              disabled={deleting}
+                              style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #fca5a5', backgroundColor: '#fff', color: '#b91c1c', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+                            >
+                              {deleting ? '...' : `삼각대만`}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(r, 'both')}
+                              disabled={deleting}
+                              style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                            >
+                              {deleting ? '삭제 중...' : '둘 다 삭제'}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleDelete(r, 'both')}
+                            disabled={deleting}
+                            style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                          >
+                            {deleting ? '삭제 중...' : '확인'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}

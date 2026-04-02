@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom'
 const tabs = [
   {
     to: '/',
+    state: { resetToToday: true },
     label: '장비',
     icon: (active) => (
       <div className="w-6 h-6 flex items-center justify-center">
@@ -33,13 +34,14 @@ const tabs = [
 export default function BottomNav() {
   return (
     <nav className="mobile-bottom-nav sticky bottom-0 z-40 bg-white border-t border-gray-100" style={{ alignItems: 'stretch' }}>
-      {tabs.map(({ to, label, icon }, idx) => (
+      {tabs.map(({ to, state, label, icon }, idx) => (
         <React.Fragment key={to}>
           {idx > 0 && (
             <div style={{ width: '1px', backgroundColor: '#f3f4f6', margin: '8px 0' }} />
           )}
           <NavLink
             to={to}
+            state={state}
             end={to === '/'}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors ${

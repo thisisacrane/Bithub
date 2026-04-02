@@ -19,15 +19,18 @@ const dotStyle = (color) => ({
   flexShrink: 0,
 })
 
-function getTodayStr() {
+function getToday() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function getRentalLabel(rental) {
-  const today = getTodayStr()
-  const label = rental.rental_date === today ? '대여중' : '대여 예정'
-  return `${rental.borrower_generation}기 ${rental.borrower_name} ${label}`
+function getRentalLabel(rental, selectedDate) {
+  const today = getToday()
+  let suffix
+  if (selectedDate && selectedDate > today) suffix = '대여 예정'
+  else if (selectedDate === today || !selectedDate) suffix = '대여중'
+  else suffix = '대여'
+  return `${rental.borrower_generation}기 ${rental.borrower_name} ${suffix}`
 }
 
 export default function StatusBadge({ status, rental, selectedDate }) {
@@ -46,7 +49,7 @@ export default function StatusBadge({ status, rental, selectedDate }) {
       return (
         <span style={badgeStyle('#eff6ff', '#2563eb')}>
           <span style={dotStyle('#3b82f6')} />
-          {getRentalLabel(rental)}
+          {getRentalLabel(rental, selectedDate)}
         </span>
       )
     }
@@ -74,7 +77,7 @@ export default function StatusBadge({ status, rental, selectedDate }) {
     return (
       <span style={badgeStyle('#eff6ff', '#2563eb')}>
         <span style={dotStyle('#3b82f6')} />
-        {getRentalLabel(rental)}
+        {getRentalLabel(rental, selectedDate)}
       </span>
     )
   }

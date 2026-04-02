@@ -3,16 +3,19 @@ import { supabase } from '../lib/supabase'
 export function useRentalActions() {
   const createRental = async (payload) => {
     const today = new Date().toISOString().slice(0, 10)
-    const isPast = payload.due_date < today
+    const isPast = payload.rental_date < today
     const isFuture = payload.rental_date > today
+
+    const nowKST = new Date(new Date().getTime() + 9 * 60 * 60 * 1000)
+    const isBeforeActivation = nowKST.getUTCHours() < 14 // 오후 2시(14:00 KST) 이전
 
     let insertPayload = { ...payload }
     if (isPast) {
       insertPayload = { ...payload, status: 'returned', returned_at: new Date().toISOString() }
-    } else if (isFuture) {
+    } else if (isFuture || (payload.rental_date === today && isBeforeActivation)) {
       insertPayload = { ...payload, status: 'scheduled' }
     }
-    // rental_date === today → status 기본값 'rented' 유지
+    // rental_date === today이고 오후 2시 이후 → status 기본값 'rented' 유지
 
     const { data, error } = await supabase
       .from('rentals')

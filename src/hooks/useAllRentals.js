@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { autoReturnStale } from './useRentals'
 
 export function useAllRentals(year, month) {
   const [rentals, setRentals] = useState([])
@@ -28,7 +29,29 @@ export function useAllRentals(year, month) {
       .gte('due_date', from)
       .order('rental_date')
 
-    setRentals(data || [])
+    const fetched = data || []
+    const hadStale = await autoReturnStale(fetched)
+    if (hadStale) {
+      const { data: fresh } = await supabase
+        .from('rentals')
+        .select(`
+        id,
+        borrower_name,
+        borrower_generation,
+        borrower_department,
+        rental_date,
+        due_date,
+        status,
+        camera:equipments!camera_id(name),
+        tripod:equipments!tripod_id(name)
+      `)
+        .lte('rental_date', to)
+        .gte('due_date', from)
+        .order('rental_date')
+      setRentals(fresh || [])
+    } else {
+      setRentals(fetched)
+    }
     setLoading(false)
   }
 

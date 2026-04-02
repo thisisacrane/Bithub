@@ -38,11 +38,6 @@ export default function CalendarPage() {
     else setMonth(m => m + 1)
     setSelectedDate(null)
   }
-  const goToday = () => {
-    setYear(today.getFullYear())
-    setMonth(today.getMonth() + 1)
-    setSelectedDate(null)
-  }
 
   const toDateStr = (d) => `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 
@@ -78,12 +73,6 @@ export default function CalendarPage() {
             </svg>
           </button>
         </div>
-        <button
-          onClick={goToday}
-          style={{ fontSize: '12px', fontWeight: '500', padding: '5px 12px', borderRadius: '9999px', border: '1px solid #e5e7eb', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}
-        >
-          오늘
-        </button>
       </div>
 
       {/* 요일 헤더 + 날짜 그리드 (슬라이드 애니메이션) */}
@@ -185,17 +174,15 @@ export default function CalendarPage() {
           ) : (
             <div>
               {selectedRentals.map((r) => (
-                <div key={r.id} style={{ padding: '12px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ fontSize: '13px', fontWeight: '500', color: '#111827', margin: '0 0 2px' }}>
-                      {[r.camera?.name, r.tripod?.name].filter(Boolean).join(' + ')}
-                    </p>
-                    <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
-                      {r.borrower_generation}기 {r.borrower_name} · {r.borrower_department}
-                    </p>
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, textAlign: 'right' }}>
-                    ~{r.due_date.slice(5).replace('-', '/')} 반납
+                <div key={r.id} style={{ padding: '12px 14px', borderBottom: '1px solid #f3f4f6' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '500', color: '#111827', margin: '0 0 2px' }}>
+                    {[r.camera?.name, r.tripod?.name].filter(Boolean).join(' + ')}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 2px' }}>
+                    {r.borrower_generation}기 {r.borrower_name} · {r.borrower_department}
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
+                    {r.rental_date} 14:00 ~ {r.due_date} 13:00
                   </p>
                 </div>
               ))}
