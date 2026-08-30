@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { autoReturnStale } from '../hooks/useRentals'
@@ -270,21 +270,65 @@ function MemberManager() {
     e.target.value = ''
   }
 
+  // 사람 식별 키: 이름 + 기수 (기수는 개인마다 고정, 재신청해도 유지)
+  const memberKey = (m) => `${(m.name || '').trim()}|${m.generation ?? ''}`
+
+  // CSV 명단 = 최종 명단. CSV에 없는 기존 부원은 삭제, 있으면 정보 갱신, 새로우면 추가
+  const importDiff = useMemo(() => {
+    if (!csvRows?.length) return null
+    const csvKeys = new Set(csvRows.map(memberKey))
+    const existingKeys = new Set(members.map(memberKey))
+    const toDelete = members.filter((m) => !csvKeys.has(memberKey(m)))
+    const addCount = csvRows.filter((r) => !existingKeys.has(memberKey(r))).length
+    return { toDelete, addCount, keepCount: csvRows.length - addCount }
+  }, [csvRows, members])
+
   const handleImport = async () => {
     if (!csvRows?.length) return
     setImporting(true)
-    const { data, error } = await supabase
-      .from('members')
-      .upsert(csvRows, { onConflict: 'name,generation,student_id', ignoreDuplicates: true })
-      .select('id')
-    setImporting(false)
-    if (error) {
-      setImportResult({ error: error.message })
-    } else {
-      setImportResult({ total: csvRows.length, added: data?.length ?? 0 })
-      setCsvRows(null)
-      loadMembers()
+
+    const rlsHint = (msg) =>
+      msg.includes('policy') || msg.includes('RLS') || msg.includes('row-level')
+        ? 'members 테이블에 UPDATE/DELETE RLS 정책이 없습니다. supabase_migration_member_sync.sql을 실행해 주세요.'
+        : msg
+
+    // CSV 내부 중복 제거 (이름+기수+학번 기준 — DB unique 제약과 동일)
+    const seen = new Set()
+    const rows = csvRows.filter((r) => {
+      const k = `${(r.name || '').trim()}|${r.generation ?? ''}|${r.student_id ?? ''}`
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+
+    const existingKeys = new Set(members.map(memberKey))
+    const csvKeys = new Set(rows.map(memberKey))
+    const added = rows.filter((r) => !existingKeys.has(memberKey(r))).length
+    const updated = rows.length - added
+    const deleted = members.filter((m) => !csvKeys.has(memberKey(m))).length
+
+    // 전체 교체: 기존 명단을 모두 지우고 CSV 명단으로 다시 삽입
+    // (기존 중복 데이터·학번 불일치까지 한번에 정리됨.
+    //  rentals.member_id 는 ON DELETE SET NULL 이고 borrower_* 컬럼이 있어 대여 기록엔 영향 없음)
+    const { error: delErr } = await supabase.from('members').delete().not('id', 'is', null)
+    if (delErr) {
+      setImporting(false)
+      setImportResult({ error: rlsHint(delErr.message) })
+      return
     }
+
+    const { error } = await supabase.from('members').insert(rows)
+    if (error) {
+      setImporting(false)
+      setImportResult({ error: `${rlsHint(error.message)} (기존 명단이 삭제된 상태이니 CSV를 다시 업로드해 주세요)` })
+      loadMembers()
+      return
+    }
+
+    setImporting(false)
+    setImportResult({ total: rows.length, added, updated, deleted })
+    setCsvRows(null)
+    loadMembers()
   }
 
   const filtered = query.trim()
@@ -322,6 +366,27 @@ function MemberManager() {
             <p style={{ fontSize: '13px', fontWeight: '600', color: '#166534', margin: 0 }}>CSV 미리보기 — {csvRows.length}명</p>
             <button onClick={() => setCsvRows(null)} style={{ fontSize: '12px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
           </div>
+
+          {/* 반영 요약: CSV 명단으로 전체 교체 */}
+          {importDiff && (
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#fff' }}>
+              <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 6px' }}>
+                이 명단으로 <strong>전체 교체</strong>됩니다 —
+                신규 <strong style={{ color: '#166534' }}>{importDiff.addCount}명</strong> ·
+                유지 <strong>{importDiff.keepCount}명</strong> ·
+                삭제 <strong style={{ color: '#dc2626' }}>{importDiff.toDelete.length}명</strong>
+              </p>
+              {importDiff.toDelete.length > 0 && (
+                <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <p style={{ fontSize: '11px', fontWeight: '600', color: '#991b1b', margin: '0 0 3px' }}>삭제될 부원 (CSV에 없음)</p>
+                  <p style={{ fontSize: '11px', color: '#b91c1c', margin: 0, lineHeight: 1.5 }}>
+                    {importDiff.toDelete.map((m) => `${m.generation}기 ${m.name}`).join(', ')}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
             {csvRows.map((r, i) => (
               <div key={i} style={{ padding: '9px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -352,7 +417,7 @@ function MemberManager() {
           <p style={{ fontSize: '13px', color: importResult.error ? '#991b1b' : '#166534', margin: 0 }}>
             {importResult.error
               ? `오류: ${importResult.error}`
-              : `완료 — ${importResult.total}명 중 ${importResult.added}명 추가됨 (중복 제외)`}
+              : `완료 — 명단 ${importResult.total}명 (신규 ${importResult.added} · 갱신 ${importResult.updated} · 삭제 ${importResult.deleted})`}
           </p>
         </div>
       )}
