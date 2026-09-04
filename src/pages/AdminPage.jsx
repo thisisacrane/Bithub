@@ -279,8 +279,9 @@ function MemberManager() {
     const csvKeys = new Set(csvRows.map(memberKey))
     const existingKeys = new Set(members.map(memberKey))
     const toDelete = members.filter((m) => !csvKeys.has(memberKey(m)))
-    const addCount = csvRows.filter((r) => !existingKeys.has(memberKey(r))).length
-    return { toDelete, addCount, keepCount: csvRows.length - addCount }
+    const isNew = (r) => !existingKeys.has(memberKey(r))
+    const addCount = csvRows.filter(isNew).length
+    return { toDelete, isNew, addCount, keepCount: csvRows.length - addCount }
   }, [csvRows, members])
 
   const handleImport = async () => {
@@ -376,27 +377,35 @@ function MemberManager() {
                 유지 <strong>{importDiff.keepCount}명</strong> ·
                 삭제 <strong style={{ color: '#dc2626' }}>{importDiff.toDelete.length}명</strong>
               </p>
-              {importDiff.toDelete.length > 0 && (
-                <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}>
-                  <p style={{ fontSize: '11px', fontWeight: '600', color: '#991b1b', margin: '0 0 3px' }}>삭제될 부원 (CSV에 없음)</p>
-                  <p style={{ fontSize: '11px', color: '#b91c1c', margin: 0, lineHeight: 1.5 }}>
-                    {importDiff.toDelete.map((m) => `${m.generation}기 ${m.name}`).join(', ')}
-                  </p>
-                </div>
-              )}
+              <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
+                아래 목록에서 <span style={{ color: '#166534', fontWeight: 600 }}>초록색</span>은 신규 추가,
+                <span style={{ color: '#991b1b', fontWeight: 600 }}> 빨간색</span>은 삭제될 부원입니다.
+              </p>
             </div>
           )}
 
           <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
-            {csvRows.map((r, i) => (
-              <div key={i} style={{ padding: '9px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {importDiff?.toDelete.map((m) => (
+              <div key={`del-${m.id}`} style={{ padding: '9px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fef2f2' }}>
                 <div>
-                  <p style={{ fontSize: '13px', fontWeight: '500', color: '#111827', margin: '0 0 1px' }}>{r.name}</p>
-                  <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>{r.generation}기 · {r.department}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '500', color: '#991b1b', margin: '0 0 1px', textDecoration: 'line-through' }}>{m.name}</p>
+                  <p style={{ fontSize: '11px', color: '#b91c1c', margin: 0 }}>{m.generation}기 · {m.department} · 삭제됨</p>
                 </div>
-                <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>{r.contact}</p>
+                <p style={{ fontSize: '11px', color: '#dc2626', margin: 0 }}>{m.contact}</p>
               </div>
             ))}
+            {csvRows.map((r, i) => {
+              const added = importDiff?.isNew(r)
+              return (
+                <div key={i} style={{ padding: '9px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: added ? '#f0fdf4' : '#fff' }}>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: '500', color: added ? '#166534' : '#111827', margin: '0 0 1px' }}>{r.name}</p>
+                    <p style={{ fontSize: '11px', color: added ? '#15803d' : '#6b7280', margin: 0 }}>{r.generation}기 · {r.department}{added ? ' · 신규' : ''}</p>
+                  </div>
+                  <p style={{ fontSize: '11px', color: added ? '#16a34a' : '#9ca3af', margin: 0 }}>{r.contact}</p>
+                </div>
+              )
+            })}
           </div>
           <div style={{ padding: '10px 14px', backgroundColor: '#f9fafb', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button onClick={() => setCsvRows(null)} style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#fff', fontSize: '13px', cursor: 'pointer' }}>취소</button>
